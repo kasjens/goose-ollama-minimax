@@ -1,0 +1,44 @@
+# Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Environment files (contain API keys)
+.env
+*.env
+
+# Brave Search MCP (contains API key)
+brave-search-mcp/.env
+
+# Config files with API keys
+config.yaml.bak
+config.yaml.backup.*
+.goose/config.yaml.backup.*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Generated files
+slides/output/
+*.pptx
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# SearxNG docker data (if using)
+searxng/
+searxng-redis/

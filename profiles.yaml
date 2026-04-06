@@ -1,0 +1,8 @@
+default:
+  provider: ollama
+  processor: minimax-m2.7:cloud
+  accelerator: minimax-m2.7:cloud
+  moderator: truncate
+  toolkits:
+    - name: developer
+      requires: {}

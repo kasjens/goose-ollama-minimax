@@ -1,0 +1,17 @@
+{
+  "name": "brave-search-mcp",
+  "version": "1.0.0",
+  "description": "Brave Search MCP server for Goose AI",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "node-fetch": "^3.3.2"
+  },
+  "bin": {
+    "brave-search-mcp": "./index.js"
+  }
+}
