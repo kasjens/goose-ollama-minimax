@@ -42,3 +42,7 @@ __pycache__/
 # SearxNG docker data (if using)
 searxng/
 searxng-redis/
+
+# Skill repositories (cloned fresh during setup)
+anthropic-skills/
+minimax-skills/
