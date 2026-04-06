@@ -267,43 +267,91 @@ fi
 
 echo ""
 
-# 6. Verify Installation
+# 6. Skills Integration
+echo "🎯 Integrating Skills (31 total)..."
+echo "-----------------------------------"
+
+# Create .agents/skills directory if it doesn't exist
+if [ ! -d ".agents/skills" ]; then
+    echo "Creating .agents/skills directory..."
+    mkdir -p .agents/skills
+    
+    # Clone skill repositories if they don't exist
+    if [ ! -d "anthropic-skills" ]; then
+        echo "Cloning Anthropic skills..."
+        git clone https://github.com/anthropics/skills.git anthropic-skills
+    fi
+    
+    if [ ! -d "minimax-skills" ]; then
+        echo "Cloning MiniMax skills..."
+        git clone https://github.com/MiniMax-AI/skills.git minimax-skills
+    fi
+    
+    # Copy all skills to .agents/skills directory
+    echo "Integrating Anthropic skills..."
+    if [ -d "anthropic-skills/skills" ]; then
+        cp -r anthropic-skills/skills/* .agents/skills/ 2>/dev/null || echo "   Some Anthropic skills may not be compatible"
+    fi
+    
+    echo "Integrating MiniMax skills..."
+    if [ -d "minimax-skills/skills" ]; then
+        cp -r minimax-skills/skills/* .agents/skills/ 2>/dev/null || echo "   Some MiniMax skills may not be compatible"
+    fi
+    
+    # Count total skills
+    SKILL_COUNT=$(ls .agents/skills/ 2>/dev/null | wc -l || echo "0")
+    echo "✅ Skills integrated: $SKILL_COUNT skills available"
+    
+    echo ""
+    echo "📋 Skill Categories:"
+    echo "   📄 Document Processing: PowerPoint, Word, Excel, PDF"
+    echo "   📱 Mobile Development: iOS, Android, React Native, Flutter"
+    echo "   🎨 Creative & Design: Art generation, GIFs, Frontend"
+    echo "   💻 Development Tools: APIs, MCP servers, Testing"
+    echo "   💼 Communication: Documentation, Analysis, Multimedia"
+else
+    EXISTING_SKILLS=$(ls .agents/skills/ 2>/dev/null | wc -l || echo "0")
+    echo "✅ Skills already integrated: $EXISTING_SKILLS skills available"
+fi
+
+echo ""
+
+# 7. Verify Installation
 echo "✨ Verifying Installation..."
 echo "---------------------------"
 
-# Run the test script
+# Run the test script if available
 if [ -f "test_skills.py" ]; then
     python test_skills.py
 fi
 
 echo ""
 
-# 7. Skill-Specific Setup Notes
-echo "📝 Skill-Specific Notes:"
-echo "------------------------"
+# 8. Skills Usage Guide
+echo "📝 How to Use Skills:"
+echo "--------------------"
 echo ""
-echo "1. Frontend Development (frontend-dev):"
-echo "   - Requires: FFmpeg, requests"
-echo "   - API Key needed for asset generation"
+echo "🎯 **Skills are auto-discovered! Just ask naturally:**"
 echo ""
-echo "2. GIF/Sticker Maker (gif-sticker-maker):"
-echo "   - Requires: FFmpeg, requests"
-echo "   - Used for animated content creation"
+echo "Document Processing:"
+echo "  🪿 'Create a PowerPoint about AI'           → Uses pptx skills"
+echo "  🪿 'Help me make a Word document'          → Uses docx skills"  
+echo "  🪿 'Generate an Excel spreadsheet'         → Uses xlsx skills"
 echo ""
-echo "3. Vision Analysis (vision-analysis):"
-echo "   - Requires: MiniMax Token Plan subscription"
-echo "   - MCP configuration needed"
+echo "Mobile Development:"
+echo "  🪿 'Build an iOS app'                      → Uses ios-application-dev"
+echo "  🪿 'Create a React Native app'             → Uses react-native-dev"
+echo "  🪿 'Develop a Flutter application'         → Uses flutter-dev"
 echo ""
-echo "4. Multimodal Toolkit (minimax-multimodal-toolkit):"
-echo "   - Requires: FFmpeg, jq, curl, xxd"
-echo "   - Pure bash scripts, no Python needed"
+echo "Creative & Design:"
+echo "  🪿 'Create algorithmic art'                → Uses algorithmic-art"
+echo "  🪿 'Make a GIF animation'                  → Uses gif-sticker-maker"
+echo "  🪿 'Design a frontend interface'           → Uses frontend-design"
 echo ""
-echo "5. Mobile Development (iOS/Android/Flutter/React Native):"
-echo "   - Documentation and templates only"
-echo "   - No additional dependencies"
-echo ""
-echo "6. Document Processing (PDF/Excel/Word/PPT):"
-echo "   - All Python packages installed ✅"
+echo "Development Tools:"
+echo "  🪿 'Build an MCP server'                   → Uses mcp-builder"
+echo "  🪿 'Test my web application'               → Uses webapp-testing"
+echo "  🪿 'Use the Claude API'                    → Uses claude-api"
 echo ""
 
 # Deactivate virtual environment
@@ -313,8 +361,12 @@ echo "============================================"
 echo "✅ Dependency Installation Complete!"
 echo "============================================"
 echo ""
-echo "Next steps:"
-echo "1. Set your MINIMAX_API_KEY environment variable"
-echo "2. Run ./run-goose.sh to start Goose with MiniMax"
-echo "3. Use 'python3 integrate-skills.py list' to see all skills"
+echo "🚀 **Next steps:**"
+echo "1. Configure cloud models: ./configure-cloud-models.sh"
+echo "2. Set up web search (optional): ./setup-brave-search.sh"
+echo "3. Install Desktop UI (optional): ./install-goose-ui.sh"
+echo "4. Validate setup: ./validate-setup.sh"
+echo "5. Start Goose: ./run-goose.sh"
+echo ""
+echo "✨ **You now have 31 skills ready to use automatically!**"
 echo ""

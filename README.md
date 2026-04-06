@@ -15,41 +15,60 @@ This project sets up Goose AI to work with a local Ollama instance accessing clo
 
 ```
 goose-ollama-minimax/
-├── .goose/
-│   └── config.yaml         # Main Goose configuration
-├── minimax-skills/         # Cloned MiniMax skills repository
-│   └── skills/            # Available skills
-├── profiles.yaml          # Goose profile configuration
-├── toolkits.yaml         # Custom toolkit definitions
-├── setup.sh              # Setup script
-├── run-goose.sh          # Launch script
-└── README.md             # This file
+├── .agents/
+│   └── skills/            # 31 integrated skills (auto-discovered)
+├── anthropic-skills/      # Original Anthropic skills repository  
+├── minimax-skills/        # Original MiniMax skills repository
+├── brave-search-mcp/      # Web search integration
+├── slides/               # PowerPoint generation workspace
+├── setup scripts/        # Installation and configuration
+├── run-goose.sh          # CLI launcher
+├── run-goose-ui.sh       # Desktop UI launcher
+└── documentation files   # Comprehensive guides
 ```
 
 ## Available Skills
 
-### MiniMax Skills (14 skills)
-- **frontend-dev**: Frontend development with AI asset generation
-- **fullstack-dev**: Full-stack development capabilities
-- **minimax-pdf**: PDF processing and manipulation
-- **minimax-xlsx**: Excel file operations
-- **minimax-docx**: Word document processing
-- **vision-analysis**: Image and vision analysis
-- **minimax-multimodal-toolkit**: Multimodal content (audio/video/image)
-- **gif-sticker-maker**: Animated GIF creation
-- **pptx-generator**: PowerPoint generation
-- **shader-dev**: GLSL shader development
-- Plus mobile development skills (iOS, Android, Flutter, React Native)
+### 🎯 **31 Skills Available** (Auto-Discovered)
 
-### Anthropic Skills (18 skills)
-- **claude-api**: Build apps with Claude API/SDK
-- **pdf/docx/pptx/xlsx**: Production-ready document processing
-- **mcp-builder**: Create MCP servers
-- **webapp-testing**: Web application testing
-- **algorithmic-art**: Generate algorithmic art
-- **frontend-design**: Design frontend interfaces
-- **skill-creator**: Create new AI skills
-- Plus creative, communication, and branding skills
+All skills are **automatically detected** by Goose based on your requests - no manual loading needed!
+
+#### 📄 **Document Processing (8 skills)**
+- **PowerPoint**: `pptx`, `pptx-generator` - Professional presentation creation
+- **Word**: `docx`, `minimax-docx` - Document creation with TOC, formatting
+- **Excel**: `xlsx`, `minimax-xlsx` - Spreadsheet operations and analysis  
+- **PDF**: `pdf`, `minimax-pdf` - PDF processing and manipulation
+
+#### 📱 **Mobile Development (4 skills)**
+- **iOS**: `ios-application-dev` - Native iOS app development
+- **Android**: `android-native-dev` - Native Android development
+- **React Native**: `react-native-dev` - Cross-platform mobile apps
+- **Flutter**: `flutter-dev` - Google's UI toolkit
+
+#### 🎨 **Creative & Design (6 skills)**
+- **Frontend Design**: `frontend-design`, `frontend-dev` - UI/UX with animations
+- **Art Creation**: `algorithmic-art`, `canvas-design` - Generative and visual art
+- **Media**: `gif-sticker-maker`, `slack-gif-creator` - Animated content
+- **Branding**: `theme-factory`, `brand-guidelines` - Professional theming
+
+#### 💻 **Development Tools (6 skills)**
+- **APIs**: `claude-api` - Build with Claude API/Anthropic SDK
+- **MCP Servers**: `mcp-builder` - Create Model Context Protocol servers
+- **Testing**: `webapp-testing` - Playwright-based web app testing
+- **Full-Stack**: `fullstack-dev` - Complete web development
+- **Shaders**: `shader-dev` - GLSL shader development  
+- **Skills**: `skill-creator` - Create and improve AI skills
+
+#### 💼 **Communication & Business (4 skills)**
+- **Documentation**: `doc-coauthoring` - Structured doc writing
+- **Internal Comms**: `internal-comms` - Professional communication
+- **Vision**: `vision-analysis` - Computer vision and image analysis
+- **Multimedia**: `minimax-multimodal-toolkit` - Audio/video/image tools
+
+#### 🌐 **Web Development (3 skills)**
+- **Artifacts**: `web-artifacts-builder` - HTML/CSS/JS applications
+- **Frontend**: Advanced UI with animations and AI-generated assets
+- **Testing**: Comprehensive web application testing and validation
 
 ### Web Search
 - **Brave Search**: Integrated web search capability (2000 queries/month free)
@@ -105,16 +124,11 @@ goose-ollama-minimax/
    ./run-goose-ui.sh            # Launch Goose Desktop application
    ```
 
-4. **Manage All Skills**
+4. **Check Skills Status**
    ```bash
-   ./goose-skills.sh            # Interactive skills manager
-   ```
-   
-   Or directly:
-   ```bash
-   python3 integrate-anthropic-skills.py list  # List Anthropic skills
-   python3 integrate-skills.py list            # List MiniMax skills
-   python3 test-enhanced-skills.py             # Test all 30 packages
+   python3 integrate-skills.py list           # List all 31 integrated skills
+   python3 test-enhanced-skills.py            # Test all 30 Python packages
+   ./validate-setup.sh                        # Complete system validation
    ```
 
 ## Configuration

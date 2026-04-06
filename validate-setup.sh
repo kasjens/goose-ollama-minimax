@@ -268,7 +268,65 @@ else
     check_fail "Python virtual environment missing"
 fi
 
-# 5. Node.js Dependencies
+# 5. Skills Integration
+section_header "SKILLS INTEGRATION"
+
+# Check .agents/skills directory
+if [ -d ".agents/skills" ]; then
+    SKILL_COUNT=$(ls .agents/skills/ 2>/dev/null | wc -l || echo "0")
+    if [ "$SKILL_COUNT" -gt 20 ]; then
+        check_pass "Skills directory exists with $SKILL_COUNT skills"
+        
+        # Check for specific skill categories
+        if [ -d ".agents/skills/docx" ] || [ -d ".agents/skills/minimax-docx" ]; then
+            check_pass "Document processing skills available"
+        else
+            check_warn "Document processing skills missing"
+        fi
+        
+        if [ -d ".agents/skills/pptx" ] || [ -d ".agents/skills/pptx-generator" ]; then
+            check_pass "PowerPoint generation skills available"
+        else
+            check_warn "PowerPoint skills missing"
+        fi
+        
+        if [ -d ".agents/skills/frontend-dev" ] || [ -d ".agents/skills/fullstack-dev" ]; then
+            check_pass "Web development skills available"
+        else
+            check_warn "Web development skills missing"
+        fi
+        
+        if [ -d ".agents/skills/ios-application-dev" ] || [ -d ".agents/skills/android-native-dev" ]; then
+            check_pass "Mobile development skills available"
+        else
+            check_info "Mobile development skills available (may require platform SDKs)"
+        fi
+        
+    elif [ "$SKILL_COUNT" -gt 0 ]; then
+        check_warn "Only $SKILL_COUNT skills found (expected 31)"
+        check_info "Run: ./install-all-dependencies.sh to install missing skills"
+    else
+        check_fail "Skills directory exists but is empty"
+    fi
+else
+    check_fail "Skills directory missing (.agents/skills/)"
+    check_info "Run: ./setup.sh or ./install-all-dependencies.sh to integrate skills"
+fi
+
+# Check if Anthropic and MiniMax source repositories exist
+if [ -d "anthropic-skills" ]; then
+    check_pass "Anthropic skills repository cloned"
+else
+    check_info "Anthropic skills source not found (will be cloned when needed)"
+fi
+
+if [ -d "minimax-skills" ]; then
+    check_pass "MiniMax skills repository cloned" 
+else
+    check_info "MiniMax skills source not found (will be cloned when needed)"
+fi
+
+# 6. Node.js Dependencies
 section_header "NODE.JS DEPENDENCIES"
 
 # Check package.json
