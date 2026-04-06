@@ -78,5 +78,9 @@ echo "Skills: 32 total (18 Anthropic + 14 MiniMax)"
 echo "To switch models: ./switch-model.sh"
 echo ""
 
+# Set Goose environment variables
+export GOOSE_PROVIDER=ollama  
+export GOOSE_MODEL=minimax-m2.7:cloud
+
 # Run Goose session with detected installation
 "$GOOSE_CMD" session --name minimax-ollama
