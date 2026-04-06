@@ -46,3 +46,16 @@ searxng-redis/
 # Skill repositories (cloned fresh during setup)
 anthropic-skills/
 minimax-skills/
+
+# Claude Code
+.claude/
+
+# Downloaded binaries
+*.zip
+*.tar.bz2
+*.deb
+
+# Goose-generated output
+scripts/run/*.html
+scripts/run/*.py
+!scripts/run/*.sh
