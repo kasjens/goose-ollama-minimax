@@ -34,8 +34,8 @@ This installs everything natively on Windows - no WSL or Linux needed.
 
 ```powershell
 cd C:\Users\$env:USERNAME\Projects
-git clone https://github.com/kasjens/goose-ollama-minimax.git
-cd goose-ollama-minimax
+git clone https://github.com/kasjens/goose-ollama.git
+cd goose-ollama
 ```
 
 **Step 2: Allow PowerShell scripts** (one-time)
@@ -104,14 +104,14 @@ Follow the prompts to create a Linux username and password.
 
 ```bash
 cd /mnt/c/Users/$USER/Projects
-git clone https://github.com/kasjens/goose-ollama-minimax.git
-cd goose-ollama-minimax
+git clone https://github.com/kasjens/goose-ollama.git
+cd goose-ollama
 ```
 
 Or if the repo is already cloned on Windows:
 
 ```bash
-cd /mnt/c/Users/$USER/Projects/goose-ollama-minimax
+cd /mnt/c/Users/$USER/Projects/goose-ollama
 ```
 
 **Step 3: Run setup**
@@ -163,8 +163,8 @@ scripts/setup/install-goose-ui.sh
 Same as WSL2 but on a native Ubuntu machine or VM.
 
 ```bash
-git clone https://github.com/kasjens/goose-ollama-minimax.git
-cd goose-ollama-minimax
+git clone https://github.com/kasjens/goose-ollama.git
+cd goose-ollama
 ./setup.sh
 ./run-goose.sh
 ```
@@ -283,7 +283,7 @@ Just ask Goose naturally:
 ## Project Structure
 
 ```
-goose-ollama-minimax/
+goose-ollama/
 +-- .agents/skills/          # 31 auto-discovered skills
 +-- config/                  # requirements, config template
 +-- scripts/
@@ -303,7 +303,7 @@ goose-ollama-minimax/
 
 | What | Windows | WSL2 / Ubuntu |
 |------|---------|---------------|
-| Python venv | `.\venv\` | `~/.local/share/goose-ollama-minimax/venv` |
+| Python venv | `.\venv\` | `~/.local/share/goose-ollama/venv` |
 | Goose CLI | `%LOCALAPPDATA%\Programs\goose\` | `~/.local/bin/goose` |
 | Goose config | `%USERPROFILE%\.config\goose\config.yaml` | `~/.config/goose/config.yaml` |
 | Skills | `.agents\skills\` + junction in `%USERPROFILE%` | `.agents/skills/` + symlink in `~` |
@@ -360,6 +360,6 @@ The `install-all-dependencies` script uses [fnm](https://github.com/Schniz/fnm) 
 **Python venv fails on WSL2**
 The setup script creates the venv in the native Linux filesystem (`~/.local/share/...`) to avoid NTFS compatibility issues. If you see venv errors, delete and re-run:
 ```bash
-rm -rf ~/.local/share/goose-ollama-minimax/venv
+rm -rf ~/.local/share/goose-ollama/venv
 ./setup.sh
 ```

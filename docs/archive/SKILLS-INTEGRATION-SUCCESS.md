@@ -6,7 +6,7 @@
 ## 🎯 Integration Summary
 
 **Total Skills Available**: 31 skills (17 Anthropic + 14 MiniMax)
-**Location**: `/home/kasjens/projects/goose-ollama-minimax/.agents/skills/`
+**Location**: `/home/kasjens/projects/goose-ollama/.agents/skills/`
 **Auto-Discovery**: ✅ Working - Goose automatically detects and loads skills
 **Skill Execution**: ✅ Working - Skills execute automatically based on user requests
 
@@ -93,7 +93,7 @@
 
 ### Directory Structure
 ```
-/home/kasjens/projects/goose-ollama-minimax/
+/home/kasjens/projects/goose-ollama/
 └── .agents/
     └── skills/
         ├── algorithmic-art/

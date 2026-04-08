@@ -70,7 +70,7 @@ echo "🐍 Setting up Python Virtual Environment..."
 echo "-----------------------------------------"
 
 # Use the same venv location as setup.sh (native Linux filesystem — NTFS mounts break venvs)
-VENV_DIR="$HOME/.local/share/goose-ollama-minimax/venv"
+VENV_DIR="$HOME/.local/share/goose-ollama/venv"
 
 if [ ! -f "$VENV_DIR/bin/activate" ]; then
     echo "Creating virtual environment at $VENV_DIR..."

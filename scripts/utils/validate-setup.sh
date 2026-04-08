@@ -84,7 +84,7 @@ fi
 # ── 3. Python environment ────────────────────────────────────────
 section "Python Environment"
 
-VENV_DIR="$HOME/.local/share/goose-ollama-minimax/venv"
+VENV_DIR="$HOME/.local/share/goose-ollama/venv"
 
 if [ -f "$VENV_DIR/bin/activate" ]; then
     check_pass "Virtual environment exists at $VENV_DIR"

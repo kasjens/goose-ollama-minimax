@@ -57,7 +57,7 @@ echo "Starting System-Wide Goose..."
 echo ""
 
 # Activate Python virtual environment
-VENV_DIR="$HOME/.local/share/goose-ollama-minimax/venv"
+VENV_DIR="$HOME/.local/share/goose-ollama/venv"
 if [ -f "$VENV_DIR/bin/activate" ]; then
     source "$VENV_DIR/bin/activate"
 fi

@@ -112,7 +112,7 @@ step 6 "Setting up Python environment..."
 
 # On WSL2 the project may live on /mnt/c (NTFS) where venvs break.
 # Always create the venv in the native Linux filesystem.
-VENV_DIR="$HOME/.local/share/goose-ollama-minimax/venv"
+VENV_DIR="$HOME/.local/share/goose-ollama/venv"
 
 if [ ! -f "$VENV_DIR/bin/activate" ]; then
     # Remove broken venv from a previous failed attempt
