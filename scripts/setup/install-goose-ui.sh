@@ -36,7 +36,7 @@ DEB_FILE="/tmp/goose-desktop.deb"
 if [ ! -f "$DEB_FILE" ]; then
     echo "Downloading Goose Desktop UI package..."
     # Get the actual download URL for the latest release
-    DOWNLOAD_URL=$(curl -s https://api.github.com/repos/block/goose/releases/latest | grep -E '"browser_download_url".*\.deb"' | cut -d'"' -f4)
+    DOWNLOAD_URL=$(curl -sL https://api.github.com/repos/block/goose/releases/latest | grep -E '"browser_download_url".*\.deb"' | cut -d'"' -f4)
     
     if [ -z "$DOWNLOAD_URL" ]; then
         echo -e "${RED}❌ Could not find download URL for latest release${NC}"
@@ -60,7 +60,7 @@ if [ "$FILE_SIZE" -lt 100000000 ]; then  # Less than 100MB indicates incomplete 
     echo -e "${YELLOW}⚠️  Package seems incomplete, re-downloading...${NC}"
     rm -f "$DEB_FILE"
     # Get the actual download URL for the latest release
-    DOWNLOAD_URL=$(curl -s https://api.github.com/repos/block/goose/releases/latest | grep -E '"browser_download_url".*\.deb"' | cut -d'"' -f4)
+    DOWNLOAD_URL=$(curl -sL https://api.github.com/repos/block/goose/releases/latest | grep -E '"browser_download_url".*\.deb"' | cut -d'"' -f4)
     curl -L "$DOWNLOAD_URL" -o "$DEB_FILE"
 fi
 
