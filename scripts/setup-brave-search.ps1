@@ -4,7 +4,7 @@
 #   Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 $ErrorActionPreference = "Stop"
-$PROJECT_DIR = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
+$PROJECT_DIR = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $PROJECT_DIR
 
 Write-Host "============================================"
