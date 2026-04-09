@@ -26,7 +26,7 @@ You'll be prompted to run `ollama signin` during setup — sign up free at [olla
 
 ---
 
-## WSL2 Note
+## WSL2 Setup
 
 If using WSL2 on Windows, first install Ubuntu from PowerShell (admin):
 
@@ -34,7 +34,26 @@ If using WSL2 on Windows, first install Ubuntu from PowerShell (admin):
 wsl --install Ubuntu
 ```
 
-Then open Ubuntu and follow the Linux instructions above. The setup script detects WSL2 automatically and handles NTFS/venv quirks.
+Then open Ubuntu and follow the Linux instructions above. The setup script detects WSL2 automatically and handles:
+
+- **Windows Ollama reuse** — if Ollama is already installed on Windows, setup skips the Linux install and uses it directly via the API
+- **Networking** — detects `networkingMode` in `.wslconfig` and offers to switch from NAT to `mirrored` so WSL can reach Windows services on localhost
+- **NTFS quirks** — creates Python venvs and clones git repos on the native Linux filesystem to avoid permission errors
+
+**Prerequisites for WSL2 with Windows Ollama:**
+
+1. Set `OLLAMA_HOST=0.0.0.0` on Windows so WSL can reach it:
+   ```powershell
+   [Environment]::SetEnvironmentVariable('OLLAMA_HOST','0.0.0.0','User')
+   ```
+2. Set `networkingMode=mirrored` in `C:\Users\<you>\.wslconfig`:
+   ```ini
+   [wsl2]
+   networkingMode=mirrored
+   ```
+3. Restart WSL: `wsl --shutdown` and reopen your terminal
+
+The setup script will guide you through these steps if needed.
 
 ---
 
@@ -120,6 +139,8 @@ goose-ollama/
 **PowerShell scripts disabled** — `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
 **Stream stalls / "no data received for 30s"** — Too many extensions inflating the payload. Disable unused extensions in `config/goose-config-template.yaml` (keep `todo`, `developer`, `analyze`). See [docs/BEST-PRACTICES.md](docs/BEST-PRACTICES.md#stream-stalls-with-cloud-models) for details.
+
+**WSL2 can't reach Windows Ollama** — Set `OLLAMA_HOST=0.0.0.0` on Windows and `networkingMode=mirrored` in `.wslconfig`, then restart both Ollama and WSL. See [WSL2 Setup](#wsl2-setup) above.
 
 **Skills missing in Desktop UI** — Verify `~/.agents` symlink exists and points to the project's `.agents/` directory.
 

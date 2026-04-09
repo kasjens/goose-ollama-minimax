@@ -18,6 +18,24 @@ ok()    { echo -e "  ${GREEN}OK${NC} $1"; }
 warn()  { echo -e "  ${YELLOW}!!${NC} $1"; }
 fail()  { echo -e "  ${RED}FAIL${NC} $1"; exit 1; }
 
+# Ollama helpers — use API when Windows Ollama, CLI otherwise
+do_ollama_pull() {
+    local model="$1"
+    if [ "$WINDOWS_OLLAMA" = true ]; then
+        curl -sf "${OLLAMA_URL}/api/pull" -d "{\"name\":\"$model\"}" --max-time 300 &>/dev/null
+    else
+        ollama pull "$model" 2>/dev/null
+    fi
+}
+do_ollama_rm() {
+    local model="$1"
+    if [ "$WINDOWS_OLLAMA" = true ]; then
+        curl -sf "${OLLAMA_URL}/api/delete" -X DELETE -d "{\"name\":\"$model\"}" &>/dev/null
+    else
+        ollama rm "$model" &>/dev/null
+    fi
+}
+
 # ── 1. System packages ─────────────────────────────────────────────
 step 1 "Installing system prerequisites..."
 
@@ -45,18 +63,120 @@ fi
 # ── 2. Ollama ───────────────────────────────────────────────────────
 step 2 "Checking Ollama..."
 
-if ! command -v ollama &>/dev/null; then
-    echo "  Ollama not found — installing..."
-    curl -fsSL https://ollama.com/install.sh | sh
-    ok "Ollama installed"
-else
-    ok "Ollama already installed"
+# Detect if running in WSL and check for Windows Ollama
+WINDOWS_OLLAMA=false
+IS_WSL=false
+OLLAMA_URL="http://localhost:11434"
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    IS_WSL=true
+
+    # WSL2 helper: find the Windows host IP (localhost may not forward to Windows)
+    WIN_HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
+
+    # Check WSL2 networking mode — mirrored allows localhost to reach Windows
+    WSLCONFIG="/mnt/c/Users/$(cmd.exe /C "echo %USERNAME%" 2>/dev/null | tr -d '\r')/.wslconfig"
+    WSL_NET_MODE=$(grep -i "^networkingMode" "$WSLCONFIG" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+
+    if [ "$WSL_NET_MODE" != "mirrored" ]; then
+        warn "WSL2 networking is '${WSL_NET_MODE:-NAT}' — localhost may not reach Windows."
+        echo "  Recommended: set networkingMode=mirrored in $WSLCONFIG"
+        echo ""
+        if [ -f "$WSLCONFIG" ]; then
+            echo "  Your current .wslconfig:"
+            cat "$WSLCONFIG" | sed 's/^/    /'
+            echo ""
+        fi
+        echo "  To fix, run this in PowerShell:"
+        echo "    (Get-Content ~\.wslconfig) -replace 'networkingMode=.*','networkingMode=mirrored' | Set-Content ~\.wslconfig"
+        echo "  Then:  wsl --shutdown  and reopen this terminal."
+        echo ""
+        read -r -p "  Fix now and restart WSL? [Y/n]: " FIX_WSL </dev/tty
+        if [[ ! $FIX_WSL =~ ^[Nn]$ ]]; then
+            if [ -f "$WSLCONFIG" ] && grep -qi "^networkingMode" "$WSLCONFIG" 2>/dev/null; then
+                # Replace existing line
+                tmpfile=$(mktemp /tmp/wslconfig.XXXXXX)
+                sed 's/^networkingMode=.*/networkingMode=mirrored/I' "$WSLCONFIG" > "$tmpfile"
+                cp "$tmpfile" "$WSLCONFIG"
+                rm -f "$tmpfile"
+            elif [ -f "$WSLCONFIG" ]; then
+                # Add under [wsl2] section
+                tmpfile=$(mktemp /tmp/wslconfig.XXXXXX)
+                sed '/^\[wsl2\]/a networkingMode=mirrored' "$WSLCONFIG" > "$tmpfile"
+                cp "$tmpfile" "$WSLCONFIG"
+                rm -f "$tmpfile"
+            else
+                echo -e "[wsl2]\nnetworkingMode=mirrored" > "$WSLCONFIG"
+            fi
+            ok "Updated .wslconfig to networkingMode=mirrored"
+            echo ""
+            warn "WSL must restart for this to take effect."
+            echo "  Run:  wsl --shutdown"
+            echo "  Then reopen this terminal and run ./setup.sh again."
+            exit 0
+        fi
+    fi
+
+    # Check 1: Is Windows Ollama API already reachable via localhost or host IP?
+    if curl -sf http://localhost:11434/api/tags &>/dev/null; then
+        WINDOWS_OLLAMA=true
+        OLLAMA_URL="http://localhost:11434"
+        ok "Ollama API reachable at localhost:11434"
+    elif [ -n "$WIN_HOST_IP" ] && curl -sf "http://${WIN_HOST_IP}:11434/api/tags" &>/dev/null; then
+        WINDOWS_OLLAMA=true
+        OLLAMA_URL="http://${WIN_HOST_IP}:11434"
+        ok "Ollama API reachable at ${WIN_HOST_IP}:11434"
+    # Check 2: Is Ollama installed on Windows but not reachable from WSL?
+    elif [ -f "/mnt/c/Users/$(whoami)/AppData/Local/Programs/Ollama/ollama.exe" ] || \
+         cmd.exe /C "where ollama" &>/dev/null 2>&1; then
+        WINDOWS_OLLAMA=true
+        warn "Ollama is installed on Windows but not reachable from WSL."
+        echo ""
+        echo "  Ollama needs to listen on all interfaces for WSL to reach it."
+        echo "  Run this in PowerShell:"
+        echo "    [Environment]::SetEnvironmentVariable('OLLAMA_HOST','0.0.0.0','User')"
+        echo "  Then restart Ollama on Windows."
+        echo ""
+        read -r -p "  Press Enter after restarting Ollama on Windows..." _ </dev/tty
+        # Try both localhost and host IP
+        if curl -sf http://localhost:11434/api/tags &>/dev/null; then
+            OLLAMA_URL="http://localhost:11434"
+            ok "Ollama is now reachable at localhost:11434"
+        elif [ -n "$WIN_HOST_IP" ] && curl -sf "http://${WIN_HOST_IP}:11434/api/tags" &>/dev/null; then
+            OLLAMA_URL="http://${WIN_HOST_IP}:11434"
+            ok "Ollama is now reachable at ${WIN_HOST_IP}:11434"
+        else
+            fail "Ollama is still not reachable from WSL. Ensure OLLAMA_HOST=0.0.0.0 is set and Ollama is restarted."
+        fi
+    fi
+
+    # If using non-localhost URL, set OLLAMA_HOST for Goose
+    if [ "$WINDOWS_OLLAMA" = true ] && [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
+        export OLLAMA_HOST="$OLLAMA_URL"
+        echo "  Setting OLLAMA_HOST=$OLLAMA_URL for this session"
+    fi
+fi
+
+if [ "$WINDOWS_OLLAMA" = false ]; then
+    if ! command -v ollama &>/dev/null; then
+        echo "  Ollama not found — installing..."
+        curl -fsSL https://ollama.com/install.sh | sh
+        ok "Ollama installed"
+    else
+        ok "Ollama already installed"
+    fi
 fi
 
 # ── 3. Ollama service ──────────────────────────────────────────────
 step 3 "Ensuring Ollama service is running..."
 
-if ! curl -sf http://localhost:11434/api/tags &>/dev/null; then
+if [ "$WINDOWS_OLLAMA" = true ]; then
+    # Windows Ollama is already running — verify it's still responding
+    if curl -sf "${OLLAMA_URL}/api/tags" &>/dev/null; then
+        ok "Using Windows Ollama (${OLLAMA_URL})"
+    else
+        fail "Windows Ollama was detected but is no longer responding at ${OLLAMA_URL}. Start Ollama on Windows and retry."
+    fi
+elif ! curl -sf http://localhost:11434/api/tags &>/dev/null; then
     if command -v systemctl &>/dev/null && systemctl is-active ollama &>/dev/null; then
         ok "Ollama service active (systemd)"
     else
@@ -83,21 +203,38 @@ fi
 # ── 4. Ollama sign-in ──────────────────────────────────────────────
 step 4 "Checking Ollama cloud sign-in..."
 
-# Try pulling a tiny cloud manifest to test sign-in
-if ollama list 2>&1 | grep -q ":cloud" || ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
-    ok "Signed in to Ollama cloud"
-else
-    warn "You need to sign in to Ollama for cloud model access."
-    echo ""
-    echo "  Run this now (it will open a browser link):"
-    echo "    ollama signin"
-    echo ""
-    read -r -p "  Press Enter after you have signed in..." _ </dev/tty
-    # Verify sign-in worked
-    if ! ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
-        fail "Still not signed in. Run 'ollama signin' and try setup again."
+if [ "$WINDOWS_OLLAMA" = true ]; then
+    # Using Windows Ollama — check for cloud models via API instead of CLI
+    if curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -q ":cloud"; then
+        ok "Windows Ollama has cloud models available"
+    else
+        warn "No cloud models found. Sign in to Ollama on Windows:"
+        echo "  Open a PowerShell window and run: ollama signin"
+        echo "  Then pull a model: ollama pull qwen3.5:cloud"
+        echo ""
+        read -r -p "  Press Enter after you have signed in and pulled models..." _ </dev/tty
+        if curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -q ":cloud"; then
+            ok "Cloud models now available"
+        else
+            fail "Still no cloud models. Sign in on Windows: ollama signin"
+        fi
     fi
-    ok "Signed in to Ollama cloud"
+else
+    # Using local Linux Ollama — check via CLI
+    if ollama list 2>&1 | grep -q ":cloud" || ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
+        ok "Signed in to Ollama cloud"
+    else
+        warn "You need to sign in to Ollama for cloud model access."
+        echo ""
+        echo "  Run this now (it will open a browser link):"
+        echo "    ollama signin"
+        echo ""
+        read -r -p "  Press Enter after you have signed in..." _ </dev/tty
+        if ! ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
+            fail "Still not signed in. Run 'ollama signin' and try setup again."
+        fi
+        ok "Signed in to Ollama cloud"
+    fi
 fi
 
 # ── 5. Fetch and pull cloud models ───────────────────────────────
@@ -131,7 +268,12 @@ else
 fi
 
 # Show available models and let user choose
-INSTALLED=$(ollama list 2>/dev/null | grep ":.*cloud" | awk '{print $1}')
+if [ "$WINDOWS_OLLAMA" = true ]; then
+    # Get installed models via API (works regardless of local CLI auth)
+    INSTALLED=$(curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -oP '"name"\s*:\s*"[^"]*:cloud[^"]*"' | sed 's/"name"\s*:\s*"//;s/"//' | sort)
+else
+    INSTALLED=$(ollama list 2>/dev/null | grep ":.*cloud" | awk '{print $1}')
+fi
 
 echo ""
 echo "  Available cloud models:"
@@ -162,7 +304,7 @@ case "${MODEL_CHOICE:-1}" in
                 ok "$model already pulled"
             else
                 echo "  Pulling $model ..."
-                ollama pull "$model" 2>/dev/null
+                do_ollama_pull "$model"
                 ok "$model pulled"
             fi
         done
@@ -173,7 +315,7 @@ case "${MODEL_CHOICE:-1}" in
                 ok "$model already pulled"
             else
                 echo "  Pulling $model ..."
-                ollama pull "$model" 2>/dev/null
+                do_ollama_pull "$model"
                 ok "$model pulled"
             fi
         done
@@ -193,7 +335,7 @@ if [ -n "$INSTALLED" ]; then
             read -r -p "  Remove $installed_model? [Y/n]: " RM_REPLY </dev/tty
             echo ""
             if [[ ! $RM_REPLY =~ ^[Nn]$ ]]; then
-                ollama rm "$installed_model" &>/dev/null && ok "Removed $installed_model"
+                do_ollama_rm "$installed_model" && ok "Removed $installed_model"
             fi
         fi
     done <<< "$INSTALLED"

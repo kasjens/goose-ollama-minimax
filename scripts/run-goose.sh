@@ -30,30 +30,34 @@ detect_goose() {
     echo ""
 }
 
-# Check if Ollama is running
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo "Ollama is not running. Starting Ollama..."
-    ollama serve &
-    sleep 3
-fi
-
-# Check for cloud models, with MiniMax as default
-CLOUD_MODELS=$(ollama list | grep ":cloud" | wc -l)
-if [ $CLOUD_MODELS -eq 0 ]; then
-    echo "⚠️  No cloud models found!"
-    echo "Run: ollama signin && ollama pull qwen3.5:cloud"
-    echo ""
-    read -p "Continue anyway? [y/N]: " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+# Detect Ollama URL (Windows Ollama reachable from WSL via localhost or host IP)
+OLLAMA_URL="http://localhost:11434"
+if ! curl -sf "${OLLAMA_URL}/api/tags" &>/dev/null; then
+    # Try WSL gateway IP (Windows Ollama with OLLAMA_HOST=0.0.0.0)
+    WIN_HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
+    if [ -n "$WIN_HOST_IP" ] && curl -sf "http://${WIN_HOST_IP}:11434/api/tags" &>/dev/null; then
+        OLLAMA_URL="http://${WIN_HOST_IP}:11434"
+    elif command -v ollama &>/dev/null; then
+        echo "Ollama is not running. Starting Ollama..."
+        ollama serve &
+        sleep 3
+    else
+        echo "Ollama is not running and not reachable."
+        echo "Start Ollama on Windows, or install it: curl -fsSL https://ollama.com/install.sh | sh"
         exit 1
     fi
-elif ! ollama list | grep -q "minimax-m2.7:cloud"; then
-    echo "⚠️  Default model (minimax-m2.7:cloud) not found!"
-    echo "Available cloud models:"
-    ollama list | grep ":cloud" | awk '{print "  - " $1}'
+fi
+
+# Check for cloud models via API
+CLOUD_MODELS=$(curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -o '"name":"[^"]*:cloud[^"]*"' | wc -l)
+if [ "$CLOUD_MODELS" -eq 0 ]; then
+    echo "No cloud models found!"
+    echo "Run: ollama signin && ollama pull qwen3.5:cloud"
     echo ""
-    echo "Run: ollama pull minimax-m2.7:cloud"
+    read -r -p "Continue anyway? [y/N]: " CONTINUE </dev/tty
+    if [[ ! $CONTINUE =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
 fi
 
 # Detect and configure Goose installation
@@ -65,11 +69,11 @@ echo "Starting Goose with Ollama Cloud Models..."
 CURRENT_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}' || echo "minimax-m2.7:cloud")
 echo "Current model: $CURRENT_MODEL"
 
-# Show available cloud models
+# Show available cloud models via API
 echo "Available cloud models:"
-ollama list | grep ":cloud" | awk '{print "  - " $1}' | head -5
-TOTAL_CLOUD=$(ollama list | grep ":cloud" | wc -l)
-if [ $TOTAL_CLOUD -gt 5 ]; then
+curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -oP '"name":"[^"]*:cloud[^"]*"' | sed 's/"name":"//;s/"//' | sort | head -5 | while read -r m; do echo "  - $m"; done
+TOTAL_CLOUD=$(curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -o '"name":"[^"]*:cloud[^"]*"' | wc -l)
+if [ "$TOTAL_CLOUD" -gt 5 ]; then
     echo "  ... and $((TOTAL_CLOUD - 5)) more"
 fi
 
@@ -86,7 +90,13 @@ fi
 
 # Set Goose environment variables
 export GOOSE_PROVIDER=ollama
-export GOOSE_MODEL=qwen3.5:cloud
+# Point Goose at the correct Ollama URL (may be Windows host IP in WSL)
+if [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
+    export OLLAMA_HOST="$OLLAMA_URL"
+fi
+# Read model from config file; fall back to qwen3.5:cloud
+CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')
+export GOOSE_MODEL="${CONFIGURED_MODEL:-qwen3.5:cloud}"
 
 # Performance: prevent stream stalls with cloud models (see docs/BEST-PRACTICES.md)
 export GOOSE_REQUEST_TIMEOUT=300

@@ -530,6 +530,50 @@ ollama rm minimax-m2.7:cloud
 ollama pull minimax-m2.7:cloud
 ```
 
+## WSL2 with Windows Ollama
+
+### How It Works
+
+When running Goose in WSL2 with Ollama installed on Windows, all scripts communicate with Ollama via its HTTP API (`localhost:11434`) instead of the CLI. This means:
+
+- No Ollama installation needed inside WSL
+- Cloud sign-in, model pulling, and model switching all work through the Windows Ollama instance
+- Goose in WSL connects to the same models you use on Windows
+
+### Network Configuration
+
+WSL2 runs in a separate virtual network. By default (`networkingMode=NAT`), WSL cannot reach Windows services on `localhost`. Two settings are required:
+
+**1. Ollama must listen on all interfaces:**
+```powershell
+# PowerShell (run once)
+[Environment]::SetEnvironmentVariable('OLLAMA_HOST','0.0.0.0','User')
+# Then restart Ollama
+```
+
+**2. WSL must use mirrored networking:**
+
+In `C:\Users\<you>\.wslconfig`:
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+Then restart WSL: `wsl --shutdown`
+
+With mirrored networking, WSL shares the host network stack and `localhost` works bidirectionally. The setup script detects both conditions and guides you through the fix.
+
+### Fallback: Gateway IP
+
+If mirrored networking is not an option, the scripts also try the WSL gateway IP (found via `ip route show default`). This works as long as `OLLAMA_HOST=0.0.0.0` is set on Windows so Ollama accepts connections from the WSL virtual network.
+
+### NTFS Limitations
+
+Scripts running on `/mnt/c` (Windows NTFS) have these known issues:
+- `sed -i` (in-place edit) fails silently — scripts use temp files as a workaround
+- `git clone` fails with `chmod` errors — setup clones into `/tmp` (native ext4)
+- Python venvs break on NTFS — setup creates them at `~/.local/share/goose-ollama/venv`
+- `read -n 1` can behave inconsistently — scripts use full-line reads with `</dev/tty`
+
 ## 📚 Additional Resources
 
 ### Documentation Links

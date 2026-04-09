@@ -33,8 +33,29 @@ echo "============================================"
 # ── 1. Core tools ─────────────────────────────────────────────────
 section "Core Tools"
 
+# Detect WSL + Windows Ollama scenario
+IS_WSL=false
+USING_WINDOWS_OLLAMA=false
+OLLAMA_URL="http://localhost:11434"
+if grep -qi microsoft /proc/version 2>/dev/null; then
+    IS_WSL=true
+    WIN_HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
+    if ! command -v ollama &>/dev/null; then
+        # No local ollama — check if Windows Ollama is reachable
+        if curl -sf http://localhost:11434/api/tags &>/dev/null; then
+            USING_WINDOWS_OLLAMA=true
+            OLLAMA_URL="http://localhost:11434"
+        elif [ -n "$WIN_HOST_IP" ] && curl -sf "http://${WIN_HOST_IP}:11434/api/tags" &>/dev/null; then
+            USING_WINDOWS_OLLAMA=true
+            OLLAMA_URL="http://${WIN_HOST_IP}:11434"
+        fi
+    fi
+fi
+
 if command -v ollama &>/dev/null; then
     check_pass "Ollama installed ($(ollama --version 2>/dev/null | head -1))"
+elif [ "$USING_WINDOWS_OLLAMA" = true ]; then
+    check_pass "Using Windows Ollama (${OLLAMA_URL})"
 else
     check_fail "Ollama not installed"
 fi
@@ -68,13 +89,14 @@ fi
 # ── 2. Ollama service & model ────────────────────────────────────
 section "Ollama Service & Model"
 
-if curl -sf http://localhost:11434/api/tags &>/dev/null; then
-    check_pass "Ollama service running on port 11434"
+if curl -sf "${OLLAMA_URL}/api/tags" &>/dev/null; then
+    check_pass "Ollama service running at ${OLLAMA_URL}"
 else
-    check_fail "Ollama service not responding on port 11434"
+    check_fail "Ollama service not responding at ${OLLAMA_URL}"
 fi
 
-CLOUD_COUNT=$(ollama list 2>/dev/null | grep -c ":cloud" || echo 0)
+# Count cloud models via API (works for both local and Windows Ollama)
+CLOUD_COUNT=$(curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -o '"name":"[^"]*:cloud[^"]*"' | wc -l)
 if [ "$CLOUD_COUNT" -gt 0 ]; then
     check_pass "$CLOUD_COUNT cloud model(s) available"
 else

@@ -7,7 +7,7 @@
 cd "$(dirname "$0")/.."
 
 echo "=================================================="
-echo "🖥️  GOOSE DESKTOP UI LAUNCHER"
+echo "  GOOSE DESKTOP UI LAUNCHER"
 echo "=================================================="
 echo ""
 
@@ -20,7 +20,7 @@ NC='\033[0m'
 
 # Check if Goose Desktop is installed
 if [ ! -f "/usr/lib/goose/Goose" ]; then
-    echo -e "${RED}❌ Goose Desktop UI not found!${NC}"
+    echo -e "${RED}Goose Desktop UI not found!${NC}"
     echo ""
     echo "Please install Goose Desktop UI first:"
     echo "  ./install-goose-ui.sh"
@@ -28,41 +28,53 @@ if [ ! -f "/usr/lib/goose/Goose" ]; then
     exit 1
 fi
 
-echo -e "${GREEN}✅ Goose Desktop UI found: /usr/lib/goose/Goose${NC}"
+echo -e "${GREEN}Goose Desktop UI found: /usr/lib/goose/Goose${NC}"
 
-# Check if Ollama is running
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  Ollama not running. Starting Ollama...${NC}"
-    ollama serve &
-    sleep 3
-    echo ""
+# Detect Ollama URL (supports Windows Ollama from WSL)
+OLLAMA_URL="http://localhost:11434"
+if ! curl -sf "${OLLAMA_URL}/api/tags" &>/dev/null; then
+    WIN_HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
+    if [ -n "$WIN_HOST_IP" ] && curl -sf "http://${WIN_HOST_IP}:11434/api/tags" &>/dev/null; then
+        OLLAMA_URL="http://${WIN_HOST_IP}:11434"
+    elif command -v ollama &>/dev/null; then
+        echo -e "${YELLOW}Ollama not running. Starting Ollama...${NC}"
+        ollama serve &
+        sleep 3
+    else
+        echo -e "${RED}Ollama is not reachable. Start Ollama and try again.${NC}"
+        exit 1
+    fi
 fi
 
-# Check for cloud models
-CLOUD_MODELS=$(ollama list | grep ":cloud" | wc -l)
-if [ $CLOUD_MODELS -eq 0 ]; then
-    echo -e "${YELLOW}⚠️  No cloud models found!${NC}"
+# Check for cloud models via API
+CLOUD_MODELS=$(curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -o '"name":"[^"]*:cloud[^"]*"' | wc -l)
+if [ "$CLOUD_MODELS" -eq 0 ]; then
+    echo -e "${YELLOW}No cloud models found!${NC}"
     echo "Run: ollama signin && ollama pull qwen3.5:cloud"
     echo ""
 else
-    echo -e "${GREEN}✅ Cloud models available: $CLOUD_MODELS models${NC}"
+    echo -e "${GREEN}Cloud models available: $CLOUD_MODELS models${NC}"
 fi
 
-# Show available models
+# Show available models via API
 echo ""
-echo -e "${BLUE}📋 Available Cloud Models:${NC}"
-ollama list | grep ":cloud" | awk '{print "  • " $1}' | head -5
-TOTAL_CLOUD=$(ollama list | grep ":cloud" | wc -l)
-if [ $TOTAL_CLOUD -gt 5 ]; then
-    echo "  • ... and $((TOTAL_CLOUD - 5)) more"
+echo -e "${BLUE}Available Cloud Models:${NC}"
+curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -oP '"name":"[^"]*:cloud[^"]*"' | sed 's/"name":"//;s/"//' | sort | head -5 | while read -r m; do echo "  - $m"; done
+TOTAL_CLOUD=$(curl -sf "${OLLAMA_URL}/api/tags" 2>/dev/null | grep -o '"name":"[^"]*:cloud[^"]*"' | wc -l)
+if [ "$TOTAL_CLOUD" -gt 5 ]; then
+    echo "  - ... and $((TOTAL_CLOUD - 5)) more"
 fi
 
+# Read configured model
+CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')
+GOOSE_MODEL="${CONFIGURED_MODEL:-qwen3.5:cloud}"
+
 echo ""
-echo -e "${BLUE}🎯 Configuration:${NC}"
-echo "  • Provider: Ollama (Cloud Models)"
-echo "  • Default Model: qwen3.5:cloud"
-echo "  • Skills: 31 auto-discovered"
-echo "  • Web Search: Brave Search API"
+echo -e "${BLUE}Configuration:${NC}"
+echo "  - Provider: Ollama (Cloud Models)"
+echo "  - Model: $GOOSE_MODEL"
+echo "  - Skills: 31 auto-discovered"
+echo "  - Ollama: ${OLLAMA_URL}"
 echo ""
 
 # Activate Python virtual environment so skills can access installed packages
@@ -73,33 +85,25 @@ fi
 
 # Set environment variables (desktop app reads these too)
 export GOOSE_PROVIDER=ollama
-export GOOSE_MODEL=qwen3.5:cloud
+export GOOSE_MODEL="$GOOSE_MODEL"
+if [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
+    export OLLAMA_HOST="$OLLAMA_URL"
+fi
 
-echo -e "${GREEN}🚀 Launching Goose Desktop UI...${NC}"
+echo -e "${GREEN}Launching Goose Desktop UI...${NC}"
 echo ""
 
 # Launch the desktop application
-if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
-    echo "Detected Wayland session"
-    /usr/lib/goose/Goose &
-elif [ "$XDG_SESSION_TYPE" = "x11" ]; then
-    echo "Detected X11 session"
-    /usr/lib/goose/Goose &
-else
-    echo "Launching with default settings"
-    /usr/lib/goose/Goose &
-fi
-
+/usr/lib/goose/Goose &
 GOOSE_PID=$!
 
 echo "Goose Desktop UI launched (PID: $GOOSE_PID)"
 echo ""
-echo -e "${BLUE}💡 Tips:${NC}"
-echo "• Configure providers in Settings > Configure Providers"
-echo "• Access all 31 skills through the chat interface"
-echo "• Use web search: 'Search the web for...'"
-echo "• Switch models in Settings > Models"
-echo "• Sessions are shared between CLI and Desktop UI"
+echo -e "${BLUE}Tips:${NC}"
+echo "- Configure providers in Settings > Configure Providers"
+echo "- Access all 31 skills through the chat interface"
+echo "- Switch models: ./switch-model.sh"
+echo "- Sessions are shared between CLI and Desktop UI"
 echo ""
 echo "Press Ctrl+C to stop this launcher (app will continue running)"
 echo ""
