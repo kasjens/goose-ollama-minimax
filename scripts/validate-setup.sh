@@ -3,7 +3,7 @@
 # Validate Goose + Ollama MiniMax setup
 # Aligned with what setup.sh actually installs (core setup).
 
-PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 ERRORS=0

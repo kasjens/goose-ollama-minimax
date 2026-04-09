@@ -106,7 +106,7 @@ if [ -f "/usr/share/applications/goose.desktop" ]; then
     echo -e "${GREEN}✅ Desktop entry: /usr/share/applications/goose.desktop${NC}"
 
     # Set working directory to project root so Desktop UI discovers .agents/skills/
-    PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+    PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
     if ! grep -q "^Path=" /usr/share/applications/goose.desktop; then
         sudo sed -i "/^Exec=/a Path=$PROJECT_DIR" /usr/share/applications/goose.desktop
         echo -e "${GREEN}✅ Desktop entry configured to use project directory${NC}"

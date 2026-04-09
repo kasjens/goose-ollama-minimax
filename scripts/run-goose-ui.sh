@@ -4,7 +4,7 @@
 # Launches the Goose Desktop application with proper configuration
 
 # Ensure we're in the project root (where .agents/skills/ lives)
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
 echo "=================================================="
 echo "🖥️  GOOSE DESKTOP UI LAUNCHER"

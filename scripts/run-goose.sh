@@ -4,7 +4,7 @@
 # Supports both user-local and system-wide Goose installations
 
 # Ensure we're in the project root (where .agents/skills/ lives)
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
 # Function to detect and use appropriate Goose installation
 detect_goose() {

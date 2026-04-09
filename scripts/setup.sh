@@ -4,7 +4,7 @@ set -e
 # Goose + Ollama MiniMax — One-Step Setup
 # Works on a fresh WSL2 Ubuntu install with zero prerequisites.
 
-PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 GREEN='\033[0;32m'
@@ -62,9 +62,15 @@ if ! curl -sf http://localhost:11434/api/tags &>/dev/null; then
     else
         echo "  Starting ollama serve in background..."
         nohup ollama serve &>/dev/null &
-        sleep 3
     fi
-    # Verify it came up
+    # Wait for the API to become ready (up to 30 seconds)
+    echo "  Waiting for Ollama API to become ready..."
+    for i in $(seq 1 10); do
+        if curl -sf http://localhost:11434/api/tags &>/dev/null; then
+            break
+        fi
+        sleep 3
+    done
     if curl -sf http://localhost:11434/api/tags &>/dev/null; then
         ok "Ollama service is running"
     else
@@ -226,17 +232,22 @@ step 7 "Integrating skills..."
 if [ ! -d ".agents/skills" ] || [ "$(ls .agents/skills/ 2>/dev/null | wc -l)" -eq 0 ]; then
     mkdir -p .agents/skills
 
+    # Clone into /tmp to avoid NTFS chmod issues on WSL2 (/mnt/c)
+    SKILLS_TMP="/tmp/goose-skills-$$"
+    mkdir -p "$SKILLS_TMP"
+
     if [ ! -d "anthropic-skills" ]; then
         echo "  Cloning Anthropic skills..."
-        git clone --depth 1 -q https://github.com/anthropics/skills.git anthropic-skills
+        git clone --depth 1 -q https://github.com/anthropics/skills.git "$SKILLS_TMP/anthropic-skills"
+        cp -r "$SKILLS_TMP/anthropic-skills/skills/"* .agents/skills/ 2>/dev/null || true
     fi
     if [ ! -d "minimax-skills" ]; then
         echo "  Cloning MiniMax skills..."
-        git clone --depth 1 -q https://github.com/MiniMax-AI/skills.git minimax-skills
+        git clone --depth 1 -q https://github.com/MiniMax-AI/skills.git "$SKILLS_TMP/minimax-skills"
+        cp -r "$SKILLS_TMP/minimax-skills/skills/"* .agents/skills/ 2>/dev/null || true
     fi
 
-    cp -r anthropic-skills/skills/* .agents/skills/ 2>/dev/null || true
-    cp -r minimax-skills/skills/* .agents/skills/ 2>/dev/null || true
+    rm -rf "$SKILLS_TMP"
 
     SKILL_COUNT=$(ls .agents/skills/ 2>/dev/null | wc -l)
     ok "$SKILL_COUNT skills integrated"

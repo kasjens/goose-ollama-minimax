@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "============================================"
 echo "Brave Search Setup for Goose AI"
