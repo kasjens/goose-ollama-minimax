@@ -92,7 +92,7 @@ else
     echo "  Run this now (it will open a browser link):"
     echo "    ollama signin"
     echo ""
-    read -p "  Press Enter after you have signed in..." _
+    read -r -p "  Press Enter after you have signed in..." _ </dev/tty
     # Verify sign-in worked
     if ! ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
         fail "Still not signed in. Run 'ollama signin' and try setup again."
@@ -149,7 +149,7 @@ echo ""
 echo "  1) Pull all cloud models (${#CLOUD_TAGS[@]} total)"
 echo "  2) Pull only new/missing models"
 echo "  3) Skip (keep current models)"
-read -p "  Choice [1-3, default=1]: " -n 1 -r MODEL_CHOICE
+read -r -p "  Choice [1-3, default=1]: " MODEL_CHOICE </dev/tty
 echo ""
 
 case "${MODEL_CHOICE:-1}" in
@@ -190,7 +190,7 @@ if [ -n "$INSTALLED" ]; then
         done
         if ! $found; then
             echo -e "  ${RED}[obsolete]${NC} $installed_model is no longer on ollama.com"
-            read -p "  Remove $installed_model? [Y/n]: " -n 1 -r RM_REPLY
+            read -r -p "  Remove $installed_model? [Y/n]: " RM_REPLY </dev/tty
             echo ""
             if [[ ! $RM_REPLY =~ ^[Nn]$ ]]; then
                 ollama rm "$installed_model" &>/dev/null && ok "Removed $installed_model"
@@ -324,9 +324,8 @@ fi
 step 9 "Optional extras..."
 
 echo ""
-read -p "  Install full ML/AI dependencies (PyTorch, OpenCV, Node.js, FFmpeg)? [y/N]: " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+read -r -p "  Install full ML/AI dependencies (PyTorch, OpenCV, Node.js, FFmpeg)? [y/N]: " INSTALL_DEPS </dev/tty
+if [[ $INSTALL_DEPS =~ ^[Yy]$ ]]; then
     echo "  Running install-all-dependencies.sh..."
     bash "$PROJECT_DIR/scripts/install-all-dependencies.sh"
     ok "Full dependencies installed"
@@ -335,9 +334,8 @@ else
 fi
 
 echo ""
-read -p "  Set up Brave Search web integration (free API key)? [y/N]: " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+read -r -p "  Set up Brave Search web integration (free API key)? [y/N]: " SETUP_BRAVE </dev/tty
+if [[ $SETUP_BRAVE =~ ^[Yy]$ ]]; then
     bash "$PROJECT_DIR/scripts/setup-brave-search.sh"
 else
     ok "Skipped (run scripts/setup-brave-search.sh later if needed)"
