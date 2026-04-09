@@ -32,7 +32,7 @@ extensions:
     bundled: true
     available_tools: []
   analyze:
-    enabled: true
+    enabled: false
     type: platform
     name: analyze
     description: 'Analyze code structure with tree-sitter: directory overviews, file details, symbol call graphs'
@@ -72,7 +72,7 @@ extensions:
     bundled: true
     available_tools: []
   code_execution:
-    enabled: true
+    enabled: false
     type: platform
     name: code_execution
     description: Goose will make extension calls through code execution, saving tokens
