@@ -292,11 +292,27 @@ $gooseDir = Join-Path $env:LOCALAPPDATA "Programs\goose"
 # Add to session PATH
 if (Test-Path $gooseDir) { $env:Path = "$gooseDir;$env:Path" }
 
+# Check for latest version from GitHub
+$latestTag = $null
+try {
+    $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/aaif-goose/goose/releases/latest" -UseBasicParsing -ErrorAction SilentlyContinue
+    $latestTag = $releaseInfo.tag_name -replace '^v', ''
+} catch {}
+
+$currentVer = $null
 if (Get-Command goose -ErrorAction SilentlyContinue) {
-    $ver = goose --version 2>&1 | Out-String
-    Ok "Goose AI already installed ($($ver.Trim()))"
-} else {
-    Write-Host "  Installing Goose AI..."
+    $currentVer = (goose --version 2>&1 | Out-String).Trim() -replace '[^0-9.]', ''
+}
+
+$needsInstall = (-not $currentVer)
+$needsUpdate = ($currentVer -and $latestTag -and $currentVer -ne $latestTag)
+
+if ($needsInstall -or $needsUpdate) {
+    if ($needsUpdate) {
+        Write-Host "  Updating Goose AI ($currentVer -> $latestTag)..."
+    } else {
+        Write-Host "  Installing Goose AI..."
+    }
     New-Item -ItemType Directory -Path $gooseDir -Force | Out-Null
 
     $zipPath = Join-Path $env:TEMP "goose-windows.zip"
@@ -324,31 +340,36 @@ if (Get-Command goose -ErrorAction SilentlyContinue) {
     $env:Path = "$gooseDir;$env:Path"
 
     if (Get-Command goose -ErrorAction SilentlyContinue) {
-        Ok "Goose AI installed"
+        $newVer = (goose --version 2>&1 | Out-String).Trim()
+        Ok "Goose AI installed ($newVer)"
     } else {
         Warn "Goose AI installed but may need a new terminal to appear in PATH"
     }
+} else {
+    Ok "Goose AI up to date ($currentVer)"
 }
 
-# Create Goose config if it doesn't exist (use full template with all extensions)
+# Apply config template (preserves GOOSE_MODEL if already set)
 $configDir = Join-Path $env:USERPROFILE ".config\goose"
 $configPath = Join-Path $configDir "config.yaml"
-if (-not (Test-Path $configPath)) {
-    New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-    $templatePath = Join-Path $PROJECT_DIR "config\goose-config-template.yaml"
-    if (Test-Path $templatePath) {
-        Copy-Item $templatePath $configPath
-    } else {
-        @"
-extensions:
-GOOSE_TELEMETRY_ENABLED: true
-GOOSE_PROVIDER: ollama
-GOOSE_MODEL: qwen3.5:cloud
-"@ | Set-Content $configPath
+New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+$templatePath = Join-Path $PROJECT_DIR "config\goose-config-template.yaml"
+
+# Preserve current model selection if config exists
+$currentModel = $null
+if (Test-Path $configPath) {
+    $currentModel = (Select-String -Path $configPath -Pattern "^GOOSE_MODEL:" -ErrorAction SilentlyContinue | ForEach-Object { ($_.Line -split '\s+', 2)[1] })
+}
+
+if (Test-Path $templatePath) {
+    Copy-Item $templatePath $configPath -Force
+    # Restore model selection
+    if ($currentModel) {
+        (Get-Content $configPath) -replace '^GOOSE_MODEL: .*', "GOOSE_MODEL: $currentModel" | Set-Content $configPath
     }
-    Ok "Goose config created at $configPath"
+    Ok "Goose config applied from template"
 } else {
-    Ok "Goose config already exists"
+    Warn "Config template not found at $templatePath"
 }
 
 # -- 9. Optional extras -------------------------------------------------------

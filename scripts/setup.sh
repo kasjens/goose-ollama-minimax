@@ -411,13 +411,24 @@ step 8 "Checking Goose AI..."
 
 export PATH="$HOME/.local/bin:$PATH"
 
+# Check for latest version from GitHub
+LATEST_VER=$(curl -sf "https://api.github.com/repos/aaif-goose/goose/releases/latest" 2>/dev/null | grep -oP '"tag_name"\s*:\s*"v?\K[^"]+' || echo "")
+CURRENT_VER=""
 if command -v goose &>/dev/null; then
-    GOOSE_VER=$(goose --version 2>/dev/null | tr -d ' ' || echo "unknown")
-    ok "Goose AI already installed ($GOOSE_VER)"
-else
-    echo "  Installing Goose AI..."
+    CURRENT_VER=$(goose --version 2>/dev/null | tr -d ' ' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+fi
 
-    # The official installer misdetects WSL2 on /mnt/c as Windows.
+NEEDS_INSTALL=false
+if [ -z "$CURRENT_VER" ]; then
+    NEEDS_INSTALL=true
+elif [ -n "$LATEST_VER" ] && [ "$CURRENT_VER" != "$LATEST_VER" ]; then
+    NEEDS_INSTALL=true
+    echo "  Updating Goose AI ($CURRENT_VER -> $LATEST_VER)..."
+fi
+
+if [ "$NEEDS_INSTALL" = true ]; then
+    [ -z "$CURRENT_VER" ] && echo "  Installing Goose AI..."
+
     # Download the Linux binary directly to native Linux filesystem.
     mkdir -p "$HOME/.local/bin"
     GOOSE_TMP="/tmp/goose-install-$$"
@@ -428,7 +439,6 @@ else
     echo "  Extracting..."
     cd "$GOOSE_TMP"
     tar -xjf goose.tar.bz2 || fail "Extraction failed — try again (download may have been corrupted)"
-    # The archive may contain the binary at top level or in a subdirectory
     GOOSE_BIN=$(find "$GOOSE_TMP" -name "goose" -type f ! -name "*.tar.*" | head -1)
     if [ -z "$GOOSE_BIN" ]; then
         fail "Could not find goose binary in archive"
@@ -445,21 +455,34 @@ else
     export PATH="$HOME/.local/bin:$PATH"
 
     if command -v goose &>/dev/null; then
-        ok "Goose AI installed"
+        NEW_VER=$(goose --version 2>/dev/null | tr -d ' ' || echo "unknown")
+        ok "Goose AI installed ($NEW_VER)"
     else
         warn "Goose AI may need a shell restart. Run: source ~/.bashrc"
     fi
+else
+    ok "Goose AI up to date ($CURRENT_VER)"
 fi
 
-# Create Goose config if it doesn't exist (use full template with all extensions)
-if [ ! -f "$HOME/.config/goose/config.yaml" ]; then
-    mkdir -p "$HOME/.config/goose"
-    if [ -f "$PROJECT_DIR/config/goose-config-template.yaml" ]; then
-        cp "$PROJECT_DIR/config/goose-config-template.yaml" "$HOME/.config/goose/config.yaml"
+# Apply config template (preserves GOOSE_MODEL if already set)
+GOOSE_CONFIG="$HOME/.config/goose/config.yaml"
+CURRENT_MODEL=""
+if [ -f "$GOOSE_CONFIG" ]; then
+    CURRENT_MODEL=$(grep "^GOOSE_MODEL:" "$GOOSE_CONFIG" 2>/dev/null | awk '{print $2}')
+fi
+mkdir -p "$HOME/.config/goose"
+if [ -f "$PROJECT_DIR/config/goose-config-template.yaml" ]; then
+    cp "$PROJECT_DIR/config/goose-config-template.yaml" "$GOOSE_CONFIG"
+    # Restore model selection
+    if [ -n "$CURRENT_MODEL" ]; then
+        tmpfile=$(mktemp /tmp/goose-cfg.XXXXXX)
+        sed "s/^GOOSE_MODEL: .*/GOOSE_MODEL: $CURRENT_MODEL/" "$GOOSE_CONFIG" > "$tmpfile"
+        cp "$tmpfile" "$GOOSE_CONFIG"
+        rm -f "$tmpfile"
     fi
-    ok "Goose config created"
+    ok "Goose config applied from template"
 else
-    ok "Goose config already exists"
+    warn "Config template not found"
 fi
 
 # Install global goose-cloud command
