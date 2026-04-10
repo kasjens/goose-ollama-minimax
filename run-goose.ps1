@@ -66,8 +66,6 @@ if (Test-Path $venvActivate) {
 
 # Set Goose env vars
 $env:GOOSE_PROVIDER = "ollama"
-# Ensure Goose connects to localhost (OLLAMA_HOST=0.0.0.0 is for Ollama's listen address, not for clients)
-$env:OLLAMA_HOST = "http://localhost:11434"
 # Read model from config file; fall back to qwen3.5:cloud
 $configModel = (Select-String -Path "$env:USERPROFILE\.config\goose\config.yaml" -Pattern "^GOOSE_MODEL:" -ErrorAction SilentlyContinue | ForEach-Object { ($_ -split '\s+',2)[1] })
 $env:GOOSE_MODEL = if ($configModel) { $configModel } else { "qwen3.5:cloud" }
