@@ -321,16 +321,21 @@ if ($needsInstall -or $needsUpdate) {
     Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
 
     Write-Host "  Extracting..."
-    Expand-Archive -Path $zipPath -DestinationPath $gooseDir -Force
+    # Extract to temp dir first, then copy to goose dir (avoids locked file issues)
+    $extractDir = Join-Path $env:TEMP "goose-extract-$PID"
+    Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+    Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
 
-    # Find goose.exe (may be nested)
-    $gooseExe = Get-ChildItem $gooseDir -Recurse -Filter "goose.exe" | Select-Object -First 1
-    if ($gooseExe -and $gooseExe.DirectoryName -ne $gooseDir) {
-        # Flatten nested files to goose dir
-        Get-ChildItem $gooseExe.DirectoryName -File | Move-Item -Destination $gooseDir -Force
+    # Find goose.exe (may be nested in a subdirectory like goose-package/)
+    $gooseExe = Get-ChildItem $extractDir -Recurse -Filter "goose.exe" | Select-Object -First 1
+    if ($gooseExe) {
+        Copy-Item $gooseExe.FullName (Join-Path $gooseDir "goose.exe") -Force
+        # Also copy any other files from the same directory (DLLs, etc.)
+        Get-ChildItem $gooseExe.DirectoryName -File | Where-Object { $_.Name -ne "goose.exe" } | Copy-Item -Destination $gooseDir -Force
     }
 
     Remove-Item $zipPath -ErrorAction SilentlyContinue
+    Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
 
     # Add to user PATH permanently
     $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
