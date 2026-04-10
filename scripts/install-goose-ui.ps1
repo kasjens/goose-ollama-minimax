@@ -39,7 +39,7 @@ if (-not $desktopAsset) {
     Write-Host "Available assets:"
     $release.assets | ForEach-Object { Write-Host "  - $($_.name)" }
     Write-Host ""
-    Write-Host "Try downloading manually from: https://github.com/block/goose/releases/latest"
+    Write-Host "Try downloading manually from: https://github.com/aaif-goose/goose/releases/latest"
     exit 1
 }
 
