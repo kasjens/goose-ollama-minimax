@@ -33,7 +33,7 @@ detect_goose() {
 # Detect Ollama URL (Windows Ollama reachable from WSL via localhost or host IP)
 OLLAMA_URL="http://localhost:11434"
 if ! curl -sf "${OLLAMA_URL}/api/tags" &>/dev/null; then
-    # Try WSL gateway IP (Windows Ollama with OLLAMA_HOST=0.0.0.0)
+    # Try WSL gateway IP (fallback for non-mirrored WSL2 networking)
     WIN_HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
     if [ -n "$WIN_HOST_IP" ] && curl -sf "http://${WIN_HOST_IP}:11434/api/tags" &>/dev/null; then
         OLLAMA_URL="http://${WIN_HOST_IP}:11434"
@@ -66,7 +66,7 @@ detect_goose
 echo "Starting Goose with Ollama Cloud Models..."
 
 # Show current model configuration  
-CURRENT_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}' || echo "minimax-m2.7:cloud")
+CURRENT_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}' || echo "qwen3.5:cloud")
 echo "Current model: $CURRENT_MODEL"
 
 # Show available cloud models via API
@@ -104,4 +104,4 @@ export OLLAMA_KEEP_ALIVE=300
 export OLLAMA_CONTEXT_LENGTH=32768
 
 # Run Goose session with detected installation
-"$GOOSE_CMD" session --name minimax-ollama
+"$GOOSE_CMD" session --name goose-cloud

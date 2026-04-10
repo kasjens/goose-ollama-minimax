@@ -18,7 +18,7 @@ echo "- News search API access"
 echo ""
 
 # Prompt for API key
-read -p "Enter your Brave Search API key: " BRAVE_API_KEY
+read -r -p "Enter your Brave Search API key: " BRAVE_API_KEY </dev/tty
 
 if [ -z "$BRAVE_API_KEY" ]; then
     echo "Error: API key cannot be empty"
@@ -62,8 +62,9 @@ if grep -q "brave-search:" ~/.config/goose/config.yaml 2>/dev/null; then
 else
     # Insert the extension into the extensions section (before GOOSE_TELEMETRY_ENABLED)
     if grep -q "GOOSE_TELEMETRY_ENABLED:" ~/.config/goose/config.yaml 2>/dev/null; then
-        # Insert before GOOSE_TELEMETRY_ENABLED
-        sed -i '/GOOSE_TELEMETRY_ENABLED:/i\  brave-search:\
+        # Insert before GOOSE_TELEMETRY_ENABLED (use tmpfile — sed -i fails on NTFS in WSL)
+        tmpfile=$(mktemp /tmp/goose-brave.XXXXXX)
+        sed '/GOOSE_TELEMETRY_ENABLED:/i\  brave-search:\
     name: brave-search\
     cmd: npx\
     args:\
@@ -73,7 +74,9 @@ else
     envs:\
       BRAVE_API_KEY: "'$BRAVE_API_KEY'"\
     type: stdio\
-    timeout: 300' ~/.config/goose/config.yaml
+    timeout: 300' ~/.config/goose/config.yaml > "$tmpfile"
+        cp "$tmpfile" ~/.config/goose/config.yaml
+        rm -f "$tmpfile"
     else
         # Append to end of extensions section  
         cat /tmp/brave-search-extension.yaml >> ~/.config/goose/config.yaml

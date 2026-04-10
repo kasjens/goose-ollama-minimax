@@ -1,4 +1,4 @@
-# Best Practices Guide: Goose + Ollama + MiniMax
+# Best Practices Guide: Goose + Ollama Cloud Models
 
 ## Overview
 This guide documents enterprise-grade best practices for setting up and optimizing a local AI development environment using Goose, Ollama, and MiniMax models.
@@ -33,14 +33,14 @@ This guide documents enterprise-grade best practices for setting up and optimizi
 
 **8GB VRAM / 16GB RAM:**
 ```yaml
-Primary: minimax-m2.7:cloud (lightweight)
+Primary: qwen3.5:cloud (lightweight)
 Secondary: qwen2.5:7b
 Avoid: Models >10B parameters
 ```
 
 **16GB VRAM / 32GB RAM:**
 ```yaml
-Primary: minimax-m2.7:cloud
+Primary: qwen3.5:cloud
 Secondary: llama3.1:13b, qwen2.5:14b
 Experimental: gemma2:27b
 ```
@@ -135,7 +135,6 @@ Group=your-group
 ExecStart=/usr/local/bin/ollama serve
 Restart=always
 RestartSec=3
-Environment="OLLAMA_HOST=0.0.0.0"
 Environment="OLLAMA_GPU_MEMORY_FRACTION=0.85"
 Environment="OLLAMA_FLASH_ATTENTION=1"
 
@@ -159,7 +158,7 @@ ollama serve 2>&1 | tee -a ollama.log &
 
 # Preload critical models
 sleep 5
-ollama run minimax-m2.7:cloud "warmup" > /dev/null 2>&1 &
+ollama run qwen3.5:cloud "warmup" > /dev/null 2>&1 &
 
 # Start Goose
 goose session --name production
@@ -291,7 +290,7 @@ while true; do
     # Response time test
     RESPONSE_TIME=$(curl -w "%{time_total}" -s -o /dev/null \
         -H "Content-Type: application/json" \
-        -d '{"model":"minimax-m2.7:cloud","prompt":"test","stream":false}' \
+        -d '{"model":"qwen3.5:cloud","prompt":"test","stream":false}' \
         http://localhost:11434/api/generate)
     
     echo "$(date): API Response Time: ${RESPONSE_TIME}s"
@@ -388,7 +387,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Ollama
-RUN curl -fsSL https://ollama.ai/install.sh | sh
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # Install Goose
 RUN curl -fsSL https://install.goose.run | sh
@@ -458,7 +457,7 @@ spec:
 ### Multi-Model Setup
 ```bash
 # Load balancing between models
-export OLLAMA_MODELS="minimax-m2.7:cloud,qwen3.5:9b"
+export OLLAMA_MODELS="qwen3.5:cloud,qwen3.5:9b"
 export OLLAMA_LOAD_BALANCE=true
 ```
 
@@ -473,11 +472,11 @@ export OLLAMA_LOAD_BALANCE=true
 ### Common Issues
 
 #### Stream Stalls with Cloud Models
-The error "Ollama stream stalled: no data received for 30s" means the model is overwhelmed by the request payload. The 30s timeout is hardcoded in Goose ([block/goose#7635](https://github.com/aaif-goose/goose/issues/7635)).
+The error "Ollama stream stalled: no data received for 30s" means the model is overwhelmed by the request payload. The 30s timeout is hardcoded in Goose ([aaif-goose/goose#7635](https://github.com/aaif-goose/goose/issues/7635)).
 
 **Fixes (in priority order):**
 
-1. **Reduce enabled extensions** — Each extension adds tool definitions to every request. In `config/goose-config-template.yaml`, keep only `todo`, `developer`, and `analyze` enabled. Disable `apps`, `extensionmanager`, `tom`, and `summon` unless actively needed. This cuts system prompt size roughly in half.
+1. **Reduce enabled extensions** — Each extension adds tool definitions to every request. In `config/goose-config-template.yaml`, keep only `todo` and `developer` enabled. Disable everything else (`apps`, `analyze`, `extensionmanager`, `tom`, `summon`, `code_execution`) unless actively needed. This minimizes the tool definition payload.
 
 2. **Set performance environment variables** (already added to run scripts):
 ```bash
@@ -492,7 +491,7 @@ export OLLAMA_CONTEXT_LENGTH=32768    # Context window size
 
 5. **Enable `code_execution` extension** — Described as "saving tokens" by having the model write code instead of using tool schemas. Can reduce payload overhead.
 
-**Known bug:** [block/goose#6117](https://github.com/aaif-goose/goose/issues/6117) — Goose sends tool definitions even in chat mode during streaming, inflating payloads unnecessarily.
+**Known bug:** [aaif-goose/goose#6117](https://github.com/aaif-goose/goose/issues/6117) — Goose sends tool definitions even in chat mode during streaming, inflating payloads unnecessarily.
 
 #### High Memory Usage
 ```bash
@@ -523,11 +522,11 @@ nvidia-smi -l 1
 df -h
 
 # Verify model integrity
-ollama show minimax-m2.7:cloud
+ollama show qwen3.5:cloud
 
 # Re-pull if corrupted
-ollama rm minimax-m2.7:cloud
-ollama pull minimax-m2.7:cloud
+ollama rm qwen3.5:cloud
+ollama pull qwen3.5:cloud
 ```
 
 ## WSL2 with Windows Ollama
@@ -542,16 +541,7 @@ When running Goose in WSL2 with Ollama installed on Windows, all scripts communi
 
 ### Network Configuration
 
-WSL2 runs in a separate virtual network. By default (`networkingMode=NAT`), WSL cannot reach Windows services on `localhost`. Two settings are required:
-
-**1. Ollama must listen on all interfaces:**
-```powershell
-# PowerShell (run once)
-[Environment]::SetEnvironmentVariable('OLLAMA_HOST','0.0.0.0','User')
-# Then restart Ollama
-```
-
-**2. WSL must use mirrored networking:**
+WSL2 runs in a separate virtual network. By default (`networkingMode=NAT`), WSL cannot reach Windows services on `localhost`. The fix is to enable mirrored networking:
 
 In `C:\Users\<you>\.wslconfig`:
 ```ini
@@ -560,11 +550,13 @@ networkingMode=mirrored
 ```
 Then restart WSL: `wsl --shutdown`
 
-With mirrored networking, WSL shares the host network stack and `localhost` works bidirectionally. The setup script detects both conditions and guides you through the fix.
+With mirrored networking, WSL shares the host network stack and `localhost` works bidirectionally. The setup script detects this and offers to fix it automatically.
+
+**Important:** Do NOT set `OLLAMA_HOST=0.0.0.0` on Windows — this breaks the Goose Desktop UI and CLI, which interpret it as a connection target rather than a listen address. Mirrored networking is the correct solution.
 
 ### Fallback: Gateway IP
 
-If mirrored networking is not an option, the scripts also try the WSL gateway IP (found via `ip route show default`). This works as long as `OLLAMA_HOST=0.0.0.0` is set on Windows so Ollama accepts connections from the WSL virtual network.
+If mirrored networking is not an option, the scripts also try the WSL gateway IP (found via `ip route show default`). This requires Ollama to listen on all interfaces, but setting `OLLAMA_HOST` system-wide causes issues. As a temporary workaround, start Ollama manually with: `$env:OLLAMA_HOST='0.0.0.0'; ollama serve`
 
 ### NTFS Limitations
 
@@ -578,7 +570,7 @@ Scripts running on `/mnt/c` (Windows NTFS) have these known issues:
 
 ### Documentation Links
 - [Ollama Documentation](https://github.com/ollama/ollama)
-- [Goose Documentation](https://block.github.io/goose/)
+- [Goose Documentation](https://github.com/aaif-goose/goose)
 - [MiniMax API Docs](https://platform.minimaxi.com/docs)
 - [Flash Attention Paper](https://arxiv.org/abs/2307.08691)
 
@@ -595,4 +587,4 @@ Scripts running on `/mnt/c` (Windows NTFS) have these known issues:
 
 ---
 
-*This guide is updated based on the latest research and best practices as of 2024. Refer to official documentation for the most current information.*
+*This guide is updated based on the latest research and best practices as of 2025. Refer to official documentation for the most current information.*

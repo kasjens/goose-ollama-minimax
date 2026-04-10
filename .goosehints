@@ -19,7 +19,7 @@
 - Avoid generating very large single outputs — split into multiple files instead.
 - Keep tool usage minimal per turn when working with cloud models.
 - Recommended model for stability: `deepseek-v3.2:cloud` (faster time-to-first-token).
-- Only 3 extensions should be enabled: `todo`, `developer`, `analyze`.
+- Only 2 extensions should be enabled: `todo` and `developer`.
 
 ## WSL2 Environment
 - This project may run in WSL2 using Windows Ollama via the API.

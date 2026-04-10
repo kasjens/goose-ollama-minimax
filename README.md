@@ -50,18 +50,16 @@ Then open Ubuntu and follow the Linux instructions above. The setup script detec
 
 **Prerequisites for WSL2 with Windows Ollama:**
 
-1. Set `OLLAMA_HOST=0.0.0.0` on Windows so WSL can reach it:
-   ```powershell
-   [Environment]::SetEnvironmentVariable('OLLAMA_HOST','0.0.0.0','User')
-   ```
-2. Set `networkingMode=mirrored` in `C:\Users\<you>\.wslconfig`:
+1. Set `networkingMode=mirrored` in `C:\Users\<you>\.wslconfig`:
    ```ini
    [wsl2]
    networkingMode=mirrored
    ```
-3. Restart WSL: `wsl --shutdown` and reopen your terminal
+2. Restart WSL: `wsl --shutdown` and reopen your terminal
 
-The setup script will guide you through these steps if needed.
+With mirrored networking, WSL shares the host network — `localhost:11434` reaches Windows Ollama directly. The setup script will guide you through this if needed.
+
+**Note:** Do NOT set `OLLAMA_HOST=0.0.0.0` on Windows — this breaks the Goose Desktop UI and CLI. Mirrored networking is the correct solution.
 
 ---
 
@@ -124,13 +122,15 @@ Examples: "Create a PowerPoint about AI trends", "Build a Flutter app", "Search 
 
 ```
 goose-ollama/
-  setup.sh / setup.ps1              # Setup
+  setup.sh / setup.ps1              # Setup (detects WSL, Windows Ollama)
   run-goose.sh / run-goose.ps1     # Launch Goose CLI
   switch-model.sh / switch-model.ps1  # Switch cloud model
   validate.sh / validate.ps1       # Validate installation
-  scripts/                         # Optional scripts (flat)
+  scripts/                         # Setup, run, and utility scripts
   config/                          # Config template, requirements
   .agents/skills/                  # 31 auto-discovered skills
+  .goosehints                      # Project conventions for Goose
+  brave-search-mcp/                # Brave Search MCP integration
   docs/                            # Best practices, web search guide
 ```
 
@@ -146,9 +146,9 @@ goose-ollama/
 
 **PowerShell scripts disabled** — `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-**Stream stalls / "no data received for 30s"** — Too many extensions inflating the payload. Disable unused extensions in `config/goose-config-template.yaml` (keep `todo`, `developer`, `analyze`). See [docs/BEST-PRACTICES.md](docs/BEST-PRACTICES.md#stream-stalls-with-cloud-models) for details.
+**Stream stalls / "no data received for 30s"** — Too many extensions inflating the payload. Disable unused extensions in `config/goose-config-template.yaml` (keep `todo`, `developer`). See [docs/BEST-PRACTICES.md](docs/BEST-PRACTICES.md#stream-stalls-with-cloud-models) for details.
 
-**WSL2 can't reach Windows Ollama** — Set `OLLAMA_HOST=0.0.0.0` on Windows and `networkingMode=mirrored` in `.wslconfig`, then restart both Ollama and WSL. See [WSL2 Setup](#wsl2-setup) above.
+**WSL2 can't reach Windows Ollama** — Set `networkingMode=mirrored` in `.wslconfig`, then `wsl --shutdown` and reopen the terminal. See [WSL2 Setup](#wsl2-setup) above.
 
 **Skills missing in Desktop UI** — Verify `~/.agents` symlink exists and points to the project's `.agents/` directory.
 

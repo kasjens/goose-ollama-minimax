@@ -106,7 +106,7 @@ if ($models -match ":cloud") {
     $ErrorActionPreference = "Stop"
     Ok "Signed in to Ollama cloud"
 } else {
-    $pullResult = ollama pull minimax-m2.7:cloud 2>&1 | Out-String
+    $pullResult = ollama pull qwen3.5:cloud 2>&1 | Out-String
     if ($pullResult -match "success|up to date") {
         $ErrorActionPreference = "Stop"
         Ok "Signed in to Ollama cloud"
@@ -117,7 +117,7 @@ if ($models -match ":cloud") {
         Write-Host "    ollama signin"
         Write-Host ""
         Read-Host "  Press Enter after you have signed in"
-        $pullResult2 = ollama pull minimax-m2.7:cloud 2>&1 | Out-String
+        $pullResult2 = ollama pull qwen3.5:cloud 2>&1 | Out-String
         $ErrorActionPreference = "Stop"
         if ($pullResult2 -notmatch "success|up to date") {
             Fail "Still not signed in. Run 'ollama signin' and try setup again."
@@ -156,7 +156,7 @@ try {
 
 if ($cloudTags.Count -eq 0) {
     Warn "Could not fetch model list from ollama.com - falling back to defaults"
-    $cloudTags = @("qwen3.5:cloud", "qwen3-coder:480b-cloud", "deepseek-v3.1:671b-cloud", "gemma4:31b-cloud", "minimax-m2.7:cloud")
+    $cloudTags = @("qwen3.5:cloud", "qwen3-coder:480b-cloud", "deepseek-v3.1:671b-cloud", "gemma4:31b-cloud", "qwen3.5:cloud")
 } else {
     Ok "Found $($cloudTags.Count) cloud models on ollama.com"
 }

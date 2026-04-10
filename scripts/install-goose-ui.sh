@@ -20,8 +20,7 @@ if [ -f "/usr/lib/goose/Goose" ]; then
     echo -e "${GREEN}✅ Goose Desktop UI already installed${NC}"
     echo "   Location: /usr/lib/goose/Goose"
     echo ""
-    read -p "Reinstall/Update? [y/N]: " -n 1 -r
-    echo
+    read -r -p "Reinstall/Update? [y/N]: " REPLY </dev/tty
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Installation cancelled."
         exit 0

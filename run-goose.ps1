@@ -76,4 +76,4 @@ $env:OLLAMA_KEEP_ALIVE = "300"
 $env:OLLAMA_CONTEXT_LENGTH = "32768"
 
 # Launch Goose
-goose session --name minimax-ollama
+goose session --name goose-cloud

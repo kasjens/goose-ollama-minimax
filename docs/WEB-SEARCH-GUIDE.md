@@ -205,7 +205,7 @@ engines:
 ## Resources
 
 - [MCP Protocol Docs](https://modelcontextprotocol.io/)
-- [Goose Extensions Guide](https://block.github.io/goose/docs/extensions)
+- [Goose Extensions Guide](https://github.com/aaif-goose/goose)
 - [Tavily API Docs](https://docs.tavily.com/)
 - [SearxNG Docs](https://docs.searxng.org/)
 - [Brave Search API](https://brave.com/search/api/)

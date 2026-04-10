@@ -131,13 +131,18 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
         WINDOWS_OLLAMA=true
         warn "Ollama is installed on Windows but not reachable from WSL."
         echo ""
-        echo "  Ollama needs to listen on all interfaces for WSL to reach it."
-        echo "  Run this in PowerShell:"
-        echo "    [Environment]::SetEnvironmentVariable('OLLAMA_HOST','0.0.0.0','User')"
-        echo "  Then restart Ollama on Windows."
+        echo "  WSL2 needs networkingMode=mirrored to reach Windows localhost."
+        echo "  The setup script should have already offered to fix this (step 2)."
+        echo "  If not, add this to C:\\Users\\$(whoami)\\.wslconfig:"
         echo ""
-        read -r -p "  Press Enter after restarting Ollama on Windows..." _ </dev/tty
-        # Try both localhost and host IP
+        echo "    [wsl2]"
+        echo "    networkingMode=mirrored"
+        echo ""
+        echo "  Then run: wsl --shutdown and reopen this terminal."
+        echo ""
+        echo "  Also make sure Ollama is running on Windows."
+        echo ""
+        read -r -p "  Press Enter after fixing networking and starting Ollama..." _ </dev/tty
         if curl -sf http://localhost:11434/api/tags &>/dev/null; then
             OLLAMA_URL="http://localhost:11434"
             ok "Ollama is now reachable at localhost:11434"
@@ -145,7 +150,7 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
             OLLAMA_URL="http://${WIN_HOST_IP}:11434"
             ok "Ollama is now reachable at ${WIN_HOST_IP}:11434"
         else
-            fail "Ollama is still not reachable from WSL. Ensure OLLAMA_HOST=0.0.0.0 is set and Ollama is restarted."
+            fail "Ollama is still not reachable from WSL. Ensure networkingMode=mirrored is set and Ollama is running."
         fi
     fi
 
@@ -221,7 +226,7 @@ if [ "$WINDOWS_OLLAMA" = true ]; then
     fi
 else
     # Using local Linux Ollama — check via CLI
-    if ollama list 2>&1 | grep -q ":cloud" || ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
+    if ollama list 2>&1 | grep -q ":cloud" || ollama pull qwen3.5:cloud 2>&1 | grep -q "success\|up to date"; then
         ok "Signed in to Ollama cloud"
     else
         warn "You need to sign in to Ollama for cloud model access."
@@ -230,7 +235,7 @@ else
         echo "    ollama signin"
         echo ""
         read -r -p "  Press Enter after you have signed in..." _ </dev/tty
-        if ! ollama pull minimax-m2.7:cloud 2>&1 | grep -q "success\|up to date"; then
+        if ! ollama pull qwen3.5:cloud 2>&1 | grep -q "success\|up to date"; then
             fail "Still not signed in. Run 'ollama signin' and try setup again."
         fi
         ok "Signed in to Ollama cloud"
@@ -262,7 +267,7 @@ fi
 
 if [ ${#CLOUD_TAGS[@]} -eq 0 ]; then
     warn "Could not fetch model list from ollama.com — falling back to defaults"
-    CLOUD_TAGS=("qwen3.5:cloud" "qwen3-coder:480b-cloud" "deepseek-v3.1:671b-cloud" "gemma4:31b-cloud" "minimax-m2.7:cloud")
+    CLOUD_TAGS=("qwen3.5:cloud" "qwen3-coder:480b-cloud" "deepseek-v3.1:671b-cloud" "gemma4:31b-cloud" "qwen3.5:cloud")
 else
     ok "Found ${#CLOUD_TAGS[@]} cloud models on ollama.com"
 fi
