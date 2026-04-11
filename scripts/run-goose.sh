@@ -90,9 +90,11 @@ fi
 
 # Set Goose environment variables
 export GOOSE_PROVIDER=ollama
-# Point Goose at the correct Ollama URL (may be Windows host IP in WSL)
+# Always set OLLAMA_HOST with explicit port — without it Goose may fall back to port 1234
 if [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
     export OLLAMA_HOST="$OLLAMA_URL"
+else
+    export OLLAMA_HOST="localhost:11434"
 fi
 # Read model from config file; fall back to qwen3.5:cloud
 CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')

@@ -126,3 +126,4 @@ extensions:
 GOOSE_TELEMETRY_ENABLED: true
 GOOSE_PROVIDER: ollama
 GOOSE_MODEL: qwen3.5:cloud
+OLLAMA_HOST: localhost:11434

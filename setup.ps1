@@ -372,6 +372,14 @@ if (Test-Path $templatePath) {
     if ($currentModel) {
         (Get-Content $configPath) -replace '^GOOSE_MODEL: .*', "GOOSE_MODEL: $currentModel" | Set-Content $configPath
     }
+    # Ensure OLLAMA_HOST has explicit port (without it, Goose falls back to port 1234)
+    $content = Get-Content $configPath -Raw
+    if ($content -match '^OLLAMA_HOST:') {
+        $content = $content -replace '^OLLAMA_HOST: .*', 'OLLAMA_HOST: localhost:11434'
+    } else {
+        $content = $content.TrimEnd() + "`nOLLAMA_HOST: localhost:11434`n"
+    }
+    Set-Content $configPath $content -NoNewline
     Ok "Goose config applied from template"
 } else {
     Warn "Config template not found at $templatePath"

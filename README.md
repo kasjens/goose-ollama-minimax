@@ -146,6 +146,8 @@ goose-ollama/
 
 **PowerShell scripts disabled** — `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
+**Context window stuck at 0% / connection error on port 1234** — `OLLAMA_HOST` must include the port (e.g., `localhost:11434`). Without it, Goose falls back to port 1234 (LM Studio default). Re-run `./setup.sh` or manually set `OLLAMA_HOST: localhost:11434` in `~/.config/goose/config.yaml`.
+
 **Stream stalls / "no data received for 30s"** — Too many extensions inflating the payload. Disable unused extensions in `config/goose-config-template.yaml` (keep `todo`, `developer`). See [docs/BEST-PRACTICES.md](docs/BEST-PRACTICES.md#stream-stalls-with-cloud-models) for details.
 
 **WSL2 can't reach Windows Ollama** — Set `networkingMode=mirrored` in `.wslconfig`, then `wsl --shutdown` and reopen the terminal. See [WSL2 Setup](#wsl2-setup) above.

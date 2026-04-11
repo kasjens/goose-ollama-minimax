@@ -169,6 +169,16 @@ section "Goose Configuration"
 
 if [ -f ~/.config/goose/config.yaml ]; then
     check_pass "Goose config file exists"
+
+    # Verify OLLAMA_HOST includes port (without port, Goose falls back to port 1234)
+    CONFIGURED_HOST=$(grep "^OLLAMA_HOST:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')
+    if [ -z "$CONFIGURED_HOST" ]; then
+        check_warn "OLLAMA_HOST not set in config (Goose may use wrong port). Run ./setup.sh to fix"
+    elif echo "$CONFIGURED_HOST" | grep -qE ":[0-9]+$"; then
+        check_pass "OLLAMA_HOST has explicit port ($CONFIGURED_HOST)"
+    else
+        check_fail "OLLAMA_HOST missing port ($CONFIGURED_HOST) — should be localhost:11434. Run ./setup.sh to fix"
+    fi
 else
     check_info "Goose config not yet created (will be created on first run)"
 fi

@@ -154,10 +154,12 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
         fi
     fi
 
-    # If using non-localhost URL, set OLLAMA_HOST for Goose
+    # Always set OLLAMA_HOST with explicit port — without it Goose may fall back to port 1234
     if [ "$WINDOWS_OLLAMA" = true ] && [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
         export OLLAMA_HOST="$OLLAMA_URL"
         echo "  Setting OLLAMA_HOST=$OLLAMA_URL for this session"
+    else
+        export OLLAMA_HOST="localhost:11434"
     fi
 fi
 
@@ -484,6 +486,19 @@ if [ -f "$PROJECT_DIR/config/goose-config-template.yaml" ]; then
         sed "s/^GOOSE_MODEL: .*/GOOSE_MODEL: $CURRENT_MODEL/" "$GOOSE_CONFIG" > "$tmpfile"
         cp "$tmpfile" "$GOOSE_CONFIG"
         rm -f "$tmpfile"
+    fi
+    # Set OLLAMA_HOST to the detected URL (with port) in the config
+    OLLAMA_HOST_VALUE="localhost:11434"
+    if [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
+        OLLAMA_HOST_VALUE="$OLLAMA_URL"
+    fi
+    if grep -q "^OLLAMA_HOST:" "$GOOSE_CONFIG" 2>/dev/null; then
+        tmpfile=$(mktemp /tmp/goose-cfg.XXXXXX)
+        sed "s|^OLLAMA_HOST: .*|OLLAMA_HOST: $OLLAMA_HOST_VALUE|" "$GOOSE_CONFIG" > "$tmpfile"
+        cp "$tmpfile" "$GOOSE_CONFIG"
+        rm -f "$tmpfile"
+    else
+        echo "OLLAMA_HOST: $OLLAMA_HOST_VALUE" >> "$GOOSE_CONFIG"
     fi
     ok "Goose config applied from template"
 else

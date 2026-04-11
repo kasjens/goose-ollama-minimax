@@ -124,6 +124,19 @@ Section "Goose Configuration"
 $configPath = Join-Path $env:USERPROFILE ".config\goose\config.yaml"
 if (Test-Path $configPath) {
     Check-Pass "Goose config file exists"
+
+    # Verify OLLAMA_HOST includes port (without port, Goose falls back to port 1234)
+    $hostLine = Select-String -Path $configPath -Pattern "^OLLAMA_HOST:" -ErrorAction SilentlyContinue
+    if (-not $hostLine) {
+        Check-Warn "OLLAMA_HOST not set in config (Goose may use wrong port). Run .\setup.ps1 to fix"
+    } else {
+        $hostValue = ($hostLine.Line -split '\s+', 2)[1].Trim()
+        if ($hostValue -match ':\d+$') {
+            Check-Pass "OLLAMA_HOST has explicit port ($hostValue)"
+        } else {
+            Check-Fail "OLLAMA_HOST missing port ($hostValue) - should be localhost:11434. Run .\setup.ps1 to fix"
+        }
+    }
 } else {
     Check-Info "Goose config not yet created (will be created on first run)"
 }
