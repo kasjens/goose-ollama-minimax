@@ -156,7 +156,7 @@ try {
 
 if ($cloudTags.Count -eq 0) {
     Warn "Could not fetch model list from ollama.com - falling back to defaults"
-    $cloudTags = @("qwen3.5:cloud", "qwen3-coder:480b-cloud", "deepseek-v3.1:671b-cloud", "gemma4:31b-cloud", "qwen3.5:cloud")
+    $cloudTags = @("qwen3.5:cloud", "qwen3-coder:480b-cloud", "deepseek-v3.1:671b-cloud", "gemma4:31b-cloud")
 } else {
     Ok "Found $($cloudTags.Count) cloud models on ollama.com"
 }
@@ -286,18 +286,26 @@ if (-not (Test-Path $homeAgents)) {
 }
 
 # -- 8. Goose AI --------------------------------------------------------------
-Step 8 "Checking Goose AI..."
+Step 8 "Checking Goose AI (always fetching latest release)..."
+
+# Force TLS 1.2 — PowerShell 5.1 defaults to TLS 1.0 which GitHub rejects,
+# causing the release-check API call to fail silently in earlier runs.
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $gooseDir = Join-Path $env:LOCALAPPDATA "Programs\goose"
 # Add to session PATH
 if (Test-Path $gooseDir) { $env:Path = "$gooseDir;$env:Path" }
 
-# Check for latest version from GitHub
+# Always query GitHub for the latest release tag — never pins to a fixed version.
+Write-Host "  Querying GitHub for the latest Goose release..."
 $latestTag = $null
 try {
-    $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/aaif-goose/goose/releases/latest" -UseBasicParsing -ErrorAction SilentlyContinue
+    $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/aaif-goose/goose/releases/latest" -UseBasicParsing
     $latestTag = $releaseInfo.tag_name -replace '^v', ''
-} catch {}
+    if ($latestTag) { Write-Host "  Latest Goose release on GitHub: $latestTag" }
+} catch {
+    Warn "Could not query GitHub ($($_.Exception.Message)) — will still attempt install"
+}
 
 $currentVer = $null
 if (Get-Command goose -ErrorAction SilentlyContinue) {
@@ -305,11 +313,14 @@ if (Get-Command goose -ErrorAction SilentlyContinue) {
 }
 
 $needsInstall = (-not $currentVer)
-$needsUpdate = ($currentVer -and $latestTag -and $currentVer -ne $latestTag)
+# If we couldn't determine $latestTag, reinstall anyway so we don't get stuck on an old build.
+$needsUpdate = ($currentVer -and (-not $latestTag -or $currentVer -ne $latestTag))
 
 if ($needsInstall -or $needsUpdate) {
-    if ($needsUpdate) {
+    if ($needsUpdate -and $latestTag) {
         Write-Host "  Updating Goose AI ($currentVer -> $latestTag)..."
+    } elseif ($needsUpdate) {
+        Write-Host "  Reinstalling Goose AI (current: $currentVer, latest: unknown)..."
     } else {
         Write-Host "  Installing Goose AI..."
     }
@@ -326,12 +337,32 @@ if ($needsInstall -or $needsUpdate) {
     Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
     Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
 
+    # If goose.exe is running (e.g. an open CLI session or Desktop UI), Copy-Item fails silently.
+    # Stop any running goose processes before we overwrite.
+    $running = Get-Process -Name goose -ErrorAction SilentlyContinue
+    if ($running) {
+        Warn "goose.exe is running — stopping $($running.Count) process(es) so the update can land"
+        $running | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+    }
+
     # Find goose.exe (may be nested in a subdirectory like goose-package/)
     $gooseExe = Get-ChildItem $extractDir -Recurse -Filter "goose.exe" | Select-Object -First 1
     if ($gooseExe) {
-        Copy-Item $gooseExe.FullName (Join-Path $gooseDir "goose.exe") -Force
+        $targetExe = Join-Path $gooseDir "goose.exe"
+        # If the file is still locked, rename the old one aside so the Copy always succeeds
+        if (Test-Path $targetExe) {
+            try { Remove-Item $targetExe -Force } catch {
+                Move-Item $targetExe "$targetExe.old-$PID" -Force -ErrorAction SilentlyContinue
+            }
+        }
+        Copy-Item $gooseExe.FullName $targetExe -Force
         # Also copy any other files from the same directory (DLLs, etc.)
         Get-ChildItem $gooseExe.DirectoryName -File | Where-Object { $_.Name -ne "goose.exe" } | Copy-Item -Destination $gooseDir -Force
+        # Clean up any stale .old-* copies from previous runs
+        Get-ChildItem $gooseDir -Filter "goose.exe.old-*" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+    } else {
+        Fail "goose.exe not found in downloaded archive"
     }
 
     Remove-Item $zipPath -ErrorAction SilentlyContinue
@@ -354,25 +385,58 @@ if ($needsInstall -or $needsUpdate) {
     Ok "Goose AI up to date ($currentVer)"
 }
 
-# Apply config template (preserves GOOSE_MODEL if already set)
-$configDir = Join-Path $env:USERPROFILE ".config\goose"
-$configPath = Join-Path $configDir "config.yaml"
+# Apply config template (preserves GOOSE_MODEL + brave-search if already set)
+# Ask Goose where its config lives — path changed in 1.30 (now %APPDATA%\Block\goose\config)
+$configPath = $null
+try {
+    $infoOut = (& goose info 2>&1 | Out-String)
+    if ($infoOut -match 'Config yaml:\s*(\S[^\r\n]*?)\s*$') {
+        $configPath = $Matches[1].Trim()
+    }
+} catch {}
+if (-not $configPath) {
+    $configPath = Join-Path $env:APPDATA "Block\goose\config\config.yaml"
+}
+$configDir = Split-Path -Parent $configPath
 New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 $templatePath = Join-Path $PROJECT_DIR "config\goose-config-template.yaml"
 
-# Preserve current model selection if config exists
+# Preserve current model + brave-search block
 $currentModel = $null
+$braveBlock = $null
 if (Test-Path $configPath) {
     $currentModel = (Select-String -Path $configPath -Pattern "^GOOSE_MODEL:" -ErrorAction SilentlyContinue | ForEach-Object { ($_.Line -split '\s+', 2)[1] })
+    $lines = Get-Content $configPath
+    $inBrave = $false
+    $braveLines = @()
+    foreach ($line in $lines) {
+        if ($line -match '^  brave-search:') { $inBrave = $true; $braveLines += $line; continue }
+        if ($inBrave) {
+            if ($line -match '^  [a-zA-Z]' -and $line -notmatch '^  brave-search:') { $inBrave = $false; continue }
+            $braveLines += $line
+        }
+    }
+    if ($braveLines.Count -gt 0) { $braveBlock = ($braveLines -join "`n") }
 }
 
 if (Test-Path $templatePath) {
     Copy-Item $templatePath $configPath -Force
-    # Restore model selection
     if ($currentModel) {
         (Get-Content $configPath) -replace '^GOOSE_MODEL: .*', "GOOSE_MODEL: $currentModel" | Set-Content $configPath
     }
-    Ok "Goose config applied from template"
+    # Re-insert brave-search block above `skills:` so API key wiring survives
+    if ($braveBlock -and -not (Select-String -Path $configPath -Pattern '^  brave-search:' -Quiet)) {
+        $content = Get-Content $configPath -Raw
+        $content = $content -replace '(  skills:)', "$braveBlock`n`$1"
+        Set-Content -Path $configPath -Value $content -NoNewline
+    }
+    Ok "Goose config applied to $configPath"
+    # Clean up stale pre-1.30 config so users aren't confused
+    $stalePath = Join-Path $env:USERPROFILE ".config\goose\config.yaml"
+    if ((Test-Path $stalePath) -and ($stalePath -ne $configPath)) {
+        Move-Item $stalePath "$stalePath.stale" -Force -ErrorAction SilentlyContinue
+        Ok "Moved pre-1.30 config aside: $stalePath.stale"
+    }
 } else {
     Warn "Config template not found at $templatePath"
 }

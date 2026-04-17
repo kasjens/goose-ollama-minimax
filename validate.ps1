@@ -121,9 +121,14 @@ if (Test-Path $skillsDir) {
 # -- Goose Configuration -----------------------------------------------------
 Section "Goose Configuration"
 
-$configPath = Join-Path $env:USERPROFILE ".config\goose\config.yaml"
+$configPath = $null
+try {
+    $infoOut = (& goose info 2>&1 | Out-String)
+    if ($infoOut -match 'Config yaml:\s*(\S[^\r\n]*?)\s*$') { $configPath = $Matches[1].Trim() }
+} catch {}
+if (-not $configPath) { $configPath = Join-Path $env:APPDATA "Block\goose\config\config.yaml" }
 if (Test-Path $configPath) {
-    Check-Pass "Goose config file exists"
+    Check-Pass "Goose config file exists ($configPath)"
 } else {
     Check-Info "Goose config not yet created (will be created on first run)"
 }

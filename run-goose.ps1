@@ -66,8 +66,14 @@ if (Test-Path $venvActivate) {
 
 # Set Goose env vars
 $env:GOOSE_PROVIDER = "ollama"
-# Read model from config file; fall back to qwen3.5:cloud
-$configModel = (Select-String -Path "$env:USERPROFILE\.config\goose\config.yaml" -Pattern "^GOOSE_MODEL:" -ErrorAction SilentlyContinue | ForEach-Object { ($_ -split '\s+',2)[1] })
+# Read model from the config file Goose actually uses (path changed in 1.30)
+$configPath = $null
+try {
+    $infoOut = (& goose info 2>&1 | Out-String)
+    if ($infoOut -match 'Config yaml:\s*(\S[^\r\n]*?)\s*$') { $configPath = $Matches[1].Trim() }
+} catch {}
+if (-not $configPath) { $configPath = Join-Path $env:APPDATA "Block\goose\config\config.yaml" }
+$configModel = (Select-String -Path $configPath -Pattern "^GOOSE_MODEL:" -ErrorAction SilentlyContinue | ForEach-Object { ($_ -split '\s+',2)[1] })
 $env:GOOSE_MODEL = if ($configModel) { $configModel } else { "qwen3.5:cloud" }
 
 # Performance: prevent stream stalls with cloud models (see docs/BEST-PRACTICES.md)

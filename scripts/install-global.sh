@@ -48,7 +48,13 @@ export GOOSE_PROVIDER=ollama
 if [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
     export OLLAMA_HOST="$OLLAMA_URL"
 fi
-CONFIGURED_MODEL=$(grep "^GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')
+# Goose 1.30 moved its config; ask the binary where it is rather than guessing
+GOOSE_CONFIG_FILE=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$GOOSE_CONFIG_FILE" ] && GOOSE_CONFIG_FILE="$HOME/.config/goose/config.yaml"
+case "$GOOSE_CONFIG_FILE" in
+    [A-Za-z]:\\*) GOOSE_CONFIG_FILE=$(echo "$GOOSE_CONFIG_FILE" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|') ;;
+esac
+CONFIGURED_MODEL=$(grep "^GOOSE_MODEL:" "$GOOSE_CONFIG_FILE" 2>/dev/null | awk '{print $2}')
 export GOOSE_MODEL="${CONFIGURED_MODEL:-qwen3.5:cloud}"
 
 # Performance
@@ -85,7 +91,12 @@ cat > "$SWITCHER" << 'SWITCHER_EOF'
 
 # goose-switch — Switch Ollama cloud model from any directory.
 
-CONFIG_FILE="$HOME/.config/goose/config.yaml"
+# Ask Goose where its config lives (path changed in 1.30)
+CONFIG_FILE=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$CONFIG_FILE" ] && CONFIG_FILE="$HOME/.config/goose/config.yaml"
+case "$CONFIG_FILE" in
+    [A-Za-z]:\\*) CONFIG_FILE=$(echo "$CONFIG_FILE" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|') ;;
+esac
 
 # Detect Ollama URL
 OLLAMA_URL="http://localhost:11434"

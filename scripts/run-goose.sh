@@ -65,8 +65,15 @@ detect_goose
 
 echo "Starting Goose with Ollama Cloud Models..."
 
-# Show current model configuration  
-CURRENT_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}' || echo "qwen3.5:cloud")
+# Resolve Goose's active config path (moved in 1.30)
+GOOSE_CONFIG_FILE=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$GOOSE_CONFIG_FILE" ] && GOOSE_CONFIG_FILE="$HOME/.config/goose/config.yaml"
+case "$GOOSE_CONFIG_FILE" in
+    [A-Za-z]:\\*) GOOSE_CONFIG_FILE=$(echo "$GOOSE_CONFIG_FILE" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|') ;;
+esac
+
+# Show current model configuration
+CURRENT_MODEL=$(grep "GOOSE_MODEL:" "$GOOSE_CONFIG_FILE" 2>/dev/null | awk '{print $2}' || echo "qwen3.5:cloud")
 echo "Current model: $CURRENT_MODEL"
 
 # Show available cloud models via API
@@ -95,7 +102,7 @@ if [ "$OLLAMA_URL" != "http://localhost:11434" ]; then
     export OLLAMA_HOST="$OLLAMA_URL"
 fi
 # Read model from config file; fall back to qwen3.5:cloud
-CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')
+CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" "$GOOSE_CONFIG_FILE" 2>/dev/null | awk '{print $2}')
 export GOOSE_MODEL="${CONFIGURED_MODEL:-qwen3.5:cloud}"
 
 # Performance: prevent stream stalls with cloud models (see docs/BEST-PRACTICES.md)

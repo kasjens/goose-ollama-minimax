@@ -267,7 +267,7 @@ fi
 
 if [ ${#CLOUD_TAGS[@]} -eq 0 ]; then
     warn "Could not fetch model list from ollama.com — falling back to defaults"
-    CLOUD_TAGS=("qwen3.5:cloud" "qwen3-coder:480b-cloud" "deepseek-v3.1:671b-cloud" "gemma4:31b-cloud" "qwen3.5:cloud")
+    CLOUD_TAGS=("qwen3.5:cloud" "qwen3-coder:480b-cloud" "deepseek-v3.1:671b-cloud" "gemma4:31b-cloud")
 else
     ok "Found ${#CLOUD_TAGS[@]} cloud models on ollama.com"
 fi
@@ -412,12 +412,14 @@ elif [ -L "$HOME/.agents" ]; then
 fi
 
 # ── 8. Goose AI ───────────────────────────────────────────────────
-step 8 "Checking Goose AI..."
+step 8 "Checking Goose AI (always fetching latest release)..."
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# Check for latest version from GitHub
+# Always query GitHub for the latest release tag — never pins to a fixed version.
+echo "  Querying GitHub for the latest Goose release..."
 LATEST_VER=$(curl -sf "https://api.github.com/repos/aaif-goose/goose/releases/latest" 2>/dev/null | grep -oP '"tag_name"\s*:\s*"v?\K[^"]+' || echo "")
+[ -n "$LATEST_VER" ] && echo "  Latest Goose release on GitHub: $LATEST_VER"
 CURRENT_VER=""
 if command -v goose &>/dev/null; then
     CURRENT_VER=$(goose --version 2>/dev/null | tr -d ' ' | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
@@ -469,13 +471,26 @@ else
     ok "Goose AI up to date ($CURRENT_VER)"
 fi
 
-# Apply config template (preserves GOOSE_MODEL if already set)
-GOOSE_CONFIG="$HOME/.config/goose/config.yaml"
+# Apply config template (preserves GOOSE_MODEL + brave-search if already set)
+# Ask goose where its config lives (path changed in 1.30; ~/.config/goose is stale)
+GOOSE_CONFIG=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$GOOSE_CONFIG" ] && GOOSE_CONFIG="$HOME/.config/goose/config.yaml"
+# Translate a Windows path (e.g. C:\Users\...) to WSL form if we're in WSL
+case "$GOOSE_CONFIG" in
+    [A-Za-z]:\\*)
+        GOOSE_CONFIG=$(echo "$GOOSE_CONFIG" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|')
+        ;;
+esac
+
 CURRENT_MODEL=""
+BRAVE_BLOCK=""
 if [ -f "$GOOSE_CONFIG" ]; then
     CURRENT_MODEL=$(grep "^GOOSE_MODEL:" "$GOOSE_CONFIG" 2>/dev/null | awk '{print $2}')
+    # Preserve the user's brave-search block if present (has API-key env_keys)
+    BRAVE_BLOCK=$(awk '/^  brave-search:/,/^  [a-zA-Z]/{ if ($0 ~ /^  [a-zA-Z]/ && $0 !~ /^  brave-search:/) exit; print }' "$GOOSE_CONFIG")
 fi
-mkdir -p "$HOME/.config/goose"
+
+mkdir -p "$(dirname "$GOOSE_CONFIG")"
 if [ -f "$PROJECT_DIR/config/goose-config-template.yaml" ]; then
     cp "$PROJECT_DIR/config/goose-config-template.yaml" "$GOOSE_CONFIG"
     # Restore model selection
@@ -485,7 +500,22 @@ if [ -f "$PROJECT_DIR/config/goose-config-template.yaml" ]; then
         cp "$tmpfile" "$GOOSE_CONFIG"
         rm -f "$tmpfile"
     fi
-    ok "Goose config applied from template"
+    # Restore brave-search block so the user doesn't lose their API-key wiring
+    if [ -n "$BRAVE_BLOCK" ] && ! grep -q "^  brave-search:" "$GOOSE_CONFIG"; then
+        tmpfile=$(mktemp /tmp/goose-cfg.XXXXXX)
+        awk -v block="$BRAVE_BLOCK" '
+            /^  skills:/ && !done { print block; done=1 }
+            { print }
+        ' "$GOOSE_CONFIG" > "$tmpfile"
+        cp "$tmpfile" "$GOOSE_CONFIG"
+        rm -f "$tmpfile"
+    fi
+    ok "Goose config applied to $GOOSE_CONFIG"
+    # Clean up stale pre-1.30 config so users aren't confused
+    if [ "$GOOSE_CONFIG" != "$HOME/.config/goose/config.yaml" ] && [ -f "$HOME/.config/goose/config.yaml" ]; then
+        mv "$HOME/.config/goose/config.yaml" "$HOME/.config/goose/config.yaml.stale"
+        ok "Moved pre-1.30 config aside: ~/.config/goose/config.yaml.stale"
+    fi
 else
     warn "Config template not found"
 fi

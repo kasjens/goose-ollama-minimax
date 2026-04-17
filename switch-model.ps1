@@ -23,7 +23,18 @@ if ($models.Count -eq 0) {
     exit 1
 }
 
-$configPath = Join-Path $env:USERPROFILE ".config\goose\config.yaml"
+# Ask Goose where its config lives (path changed in 1.30)
+$configPath = $null
+try {
+    $infoOut = (& goose info 2>&1 | Out-String)
+    if ($infoOut -match 'Config yaml:\s*(\S[^\r\n]*?)\s*$') {
+        $configPath = $Matches[1].Trim()
+    }
+} catch {}
+if (-not $configPath) {
+    $configPath = Join-Path $env:APPDATA "Block\goose\config\config.yaml"
+}
+
 $currentModel = ""
 if (Test-Path $configPath) {
     $configContent = Get-Content $configPath -Raw

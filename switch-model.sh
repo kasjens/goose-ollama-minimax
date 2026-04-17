@@ -4,7 +4,14 @@
 echo "Available Ollama Cloud Models:"
 echo "=================================="
 
-CONFIG_FILE="$HOME/.config/goose/config.yaml"
+# Ask Goose where its config lives (path changed in 1.30)
+CONFIG_FILE=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$CONFIG_FILE" ] && CONFIG_FILE="$HOME/.config/goose/config.yaml"
+case "$CONFIG_FILE" in
+    [A-Za-z]:\\*)
+        CONFIG_FILE=$(echo "$CONFIG_FILE" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|')
+        ;;
+esac
 
 # Detect Ollama URL (supports Windows Ollama from WSL)
 OLLAMA_URL="http://localhost:11434"

@@ -25,6 +25,14 @@ if [ -z "$BRAVE_API_KEY" ]; then
     exit 1
 fi
 
+# Resolve Goose's active config path (moved in 1.30)
+GOOSE_CFG=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$GOOSE_CFG" ] && GOOSE_CFG="$HOME/.config/goose/config.yaml"
+case "$GOOSE_CFG" in
+    [A-Za-z]:\\*) GOOSE_CFG=$(echo "$GOOSE_CFG" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|') ;;
+esac
+mkdir -p "$(dirname "$GOOSE_CFG")"
+
 # Store API key in .env file for the MCP server
 echo "Creating .env file for Brave Search MCP..."
 cat > $PROJECT_DIR/brave-search-mcp/.env << EOF
@@ -32,10 +40,10 @@ BRAVE_API_KEY=$BRAVE_API_KEY
 EOF
 
 # Check if extensions section exists in Goose config
-if ! grep -q "extensions:" ~/.config/goose/config.yaml 2>/dev/null; then
+if ! grep -q "extensions:" "$GOOSE_CFG" 2>/dev/null; then
     echo "Adding extensions section to Goose config..."
-    echo "" >> ~/.config/goose/config.yaml
-    echo "extensions:" >> ~/.config/goose/config.yaml
+    echo "" >> "$GOOSE_CFG"
+    echo "extensions:" >> "$GOOSE_CFG"
 fi
 
 # Add Brave Search extension to Goose config
@@ -57,11 +65,11 @@ cat > /tmp/brave-search-extension.yaml << EOF
 EOF
 
 # Check if brave-search already exists in config
-if grep -q "brave-search:" ~/.config/goose/config.yaml 2>/dev/null; then
+if grep -q "brave-search:" "$GOOSE_CFG" 2>/dev/null; then
     echo "✅ Brave Search extension already configured"
 else
     # Insert the extension into the extensions section (before GOOSE_TELEMETRY_ENABLED)
-    if grep -q "GOOSE_TELEMETRY_ENABLED:" ~/.config/goose/config.yaml 2>/dev/null; then
+    if grep -q "GOOSE_TELEMETRY_ENABLED:" "$GOOSE_CFG" 2>/dev/null; then
         # Insert before GOOSE_TELEMETRY_ENABLED (use tmpfile — sed -i fails on NTFS in WSL)
         tmpfile=$(mktemp /tmp/goose-brave.XXXXXX)
         sed '/GOOSE_TELEMETRY_ENABLED:/i\  brave-search:\
@@ -74,12 +82,12 @@ else
     envs:\
       BRAVE_API_KEY: "'$BRAVE_API_KEY'"\
     type: stdio\
-    timeout: 300' ~/.config/goose/config.yaml > "$tmpfile"
-        cp "$tmpfile" ~/.config/goose/config.yaml
+    timeout: 300' "$GOOSE_CFG" > "$tmpfile"
+        cp "$tmpfile" "$GOOSE_CFG"
         rm -f "$tmpfile"
     else
         # Append to end of extensions section  
-        cat /tmp/brave-search-extension.yaml >> ~/.config/goose/config.yaml
+        cat /tmp/brave-search-extension.yaml >> "$GOOSE_CFG"
     fi
     echo "✅ Brave Search extension added to Goose config"
 fi
@@ -158,7 +166,7 @@ fi
 echo ""
 echo "Your API key has been stored in:"
 echo "  • $PROJECT_DIR/brave-search-mcp/.env"
-echo "  • ~/.config/goose/config.yaml (CLI)"
+echo "  • $GOOSE_CFG (CLI)"
 echo ""
 echo "Note: Desktop UI requires adding extensions through its Settings UI."
 echo ""

@@ -65,8 +65,13 @@ if [ "$TOTAL_CLOUD" -gt 5 ]; then
     echo "  - ... and $((TOTAL_CLOUD - 5)) more"
 fi
 
-# Read configured model
-CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" ~/.config/goose/config.yaml 2>/dev/null | awk '{print $2}')
+# Read configured model from the config path Goose actually uses (1.30 moved it)
+GOOSE_CONFIG_FILE=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$GOOSE_CONFIG_FILE" ] && GOOSE_CONFIG_FILE="$HOME/.config/goose/config.yaml"
+case "$GOOSE_CONFIG_FILE" in
+    [A-Za-z]:\\*) GOOSE_CONFIG_FILE=$(echo "$GOOSE_CONFIG_FILE" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|') ;;
+esac
+CONFIGURED_MODEL=$(grep "GOOSE_MODEL:" "$GOOSE_CONFIG_FILE" 2>/dev/null | awk '{print $2}')
 GOOSE_MODEL="${CONFIGURED_MODEL:-qwen3.5:cloud}"
 
 echo ""

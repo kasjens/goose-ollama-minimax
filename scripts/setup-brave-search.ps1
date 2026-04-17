@@ -27,8 +27,14 @@ $envPath = Join-Path $PROJECT_DIR "brave-search-mcp\.env"
 "BRAVE_API_KEY=$apiKey" | Set-Content $envPath
 Write-Host "  OK Saved to $envPath" -ForegroundColor Green
 
-# Add Brave Search extension to Goose CLI config
-$configPath = Join-Path $env:USERPROFILE ".config\goose\config.yaml"
+# Add Brave Search extension to Goose CLI config (1.30 moved the config path)
+$configPath = $null
+try {
+    $infoOut = (& goose info 2>&1 | Out-String)
+    if ($infoOut -match 'Config yaml:\s*(\S[^\r\n]*?)\s*$') { $configPath = $Matches[1].Trim() }
+} catch {}
+if (-not $configPath) { $configPath = Join-Path $env:APPDATA "Block\goose\config\config.yaml" }
+New-Item -ItemType Directory -Path (Split-Path $configPath -Parent) -Force | Out-Null
 if (Test-Path $configPath) {
     $configContent = Get-Content $configPath -Raw
     if ($configContent -match "brave-search:") {

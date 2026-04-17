@@ -64,9 +64,22 @@ if ($cloudCount -eq 0) {
 }
 
 Write-Host ""
+# Goose 1.30 moved its config path — ask the binary rather than guess
+$configPath = $null
+try {
+    $infoOut = (& goose info 2>&1 | Out-String)
+    if ($infoOut -match 'Config yaml:\s*(\S[^\r\n]*?)\s*$') { $configPath = $Matches[1].Trim() }
+} catch {}
+if (-not $configPath) { $configPath = Join-Path $env:APPDATA "Block\goose\config\config.yaml" }
+$configuredModel = $null
+if (Test-Path $configPath) {
+    $configuredModel = (Select-String -Path $configPath -Pattern "^GOOSE_MODEL:" -ErrorAction SilentlyContinue | ForEach-Object { ($_.Line -split '\s+', 2)[1] })
+}
+if (-not $configuredModel) { $configuredModel = "qwen3.5:cloud" }
+
 Write-Host "Configuration:" -ForegroundColor Blue
 Write-Host "  Provider: Ollama (Cloud Models)"
-Write-Host "  Default Model: qwen3.5:cloud"
+Write-Host "  Default Model: $configuredModel"
 Write-Host "  Skills: 31 auto-discovered"
 Write-Host ""
 
@@ -78,7 +91,7 @@ if (Test-Path $venvActivate) {
 
 # Set environment variables
 $env:GOOSE_PROVIDER = "ollama"
-$env:GOOSE_MODEL = "qwen3.5:cloud"
+$env:GOOSE_MODEL = $configuredModel
 
 Write-Host "Launching Goose Desktop UI..." -ForegroundColor Green
 Write-Host ""

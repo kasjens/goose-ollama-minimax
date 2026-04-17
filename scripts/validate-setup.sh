@@ -167,8 +167,13 @@ fi
 # ── 5. Goose configuration (optional — may not exist on first run) ─
 section "Goose Configuration"
 
-if [ -f ~/.config/goose/config.yaml ]; then
-    check_pass "Goose config file exists"
+GOOSE_CFG=$(goose info 2>/dev/null | grep -oP 'Config yaml:\s*\K\S+' | tr -d '\r')
+[ -z "$GOOSE_CFG" ] && GOOSE_CFG="$HOME/.config/goose/config.yaml"
+case "$GOOSE_CFG" in
+    [A-Za-z]:\\*) GOOSE_CFG=$(echo "$GOOSE_CFG" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/mnt/\L\1|') ;;
+esac
+if [ -f "$GOOSE_CFG" ]; then
+    check_pass "Goose config file exists ($GOOSE_CFG)"
 else
     check_info "Goose config not yet created (will be created on first run)"
 fi
