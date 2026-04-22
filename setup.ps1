@@ -50,6 +50,31 @@ function Invoke-Native {
     }
 }
 
+# winget is finicky - the default msstore source can refuse silent installs,
+# the --silent flag may not match any installer variant (0x8A15002B), and
+# scope mismatches cause "no applicable installer" errors. Try several flag
+# combinations before giving up so fresh Windows 11 boxes don't get stuck.
+function Install-WithWinget {
+    param(
+        [Parameter(Mandatory)][string]$PackageId,
+        [string]$FriendlyName = $PackageId
+    )
+    $attempts = @(
+        @("install","--id",$PackageId,"-e","--source","winget","--scope","user","--silent","--accept-source-agreements","--accept-package-agreements"),
+        @("install","--id",$PackageId,"-e","--source","winget","--silent","--accept-source-agreements","--accept-package-agreements"),
+        @("install","--id",$PackageId,"-e","--source","winget","--accept-source-agreements","--accept-package-agreements")
+    )
+    foreach ($attempt in $attempts) {
+        try {
+            Invoke-Native winget $attempt "winget install $FriendlyName failed"
+            return $true
+        } catch {
+            Write-Host "  Retrying $FriendlyName install with different flags..."
+        }
+    }
+    return $false
+}
+
 # -- 1. Prerequisites --------------------------------------------------------
 Step 1 "Checking prerequisites..."
 
@@ -57,7 +82,10 @@ Step 1 "Checking prerequisites..."
 $pythonCmd = Get-RealCommand python
 if (-not $pythonCmd) {
     Write-Host "  Installing Python..."
-    Invoke-Native winget @("install","Python.Python.3.12","--accept-source-agreements","--accept-package-agreements","--silent") "winget failed to install Python"
+    $ok = Install-WithWinget -PackageId "Python.Python.3.12" -FriendlyName "Python"
+    if (-not $ok) {
+        Fail "Could not install Python via winget. Install manually from https://www.python.org/downloads/ and re-run setup."
+    }
     Refresh-Path
     $pythonCmd = Get-RealCommand python
 }
@@ -65,19 +93,22 @@ if ($pythonCmd) {
     $pythonVer = try { (& $pythonCmd.Source --version 2>&1 | Out-String).Trim() } catch { "installed" }
     Ok "Python $pythonVer"
 } else {
-    Fail "Python not found. Install from https://www.python.org/downloads/"
+    Fail "Python not found after install. Open a new terminal and re-run setup, or install from https://www.python.org/downloads/"
 }
 
 # Git
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "  Installing Git..."
-    Invoke-Native winget @("install","Git.Git","--accept-source-agreements","--accept-package-agreements","--silent") "winget failed to install Git"
+    $ok = Install-WithWinget -PackageId "Git.Git" -FriendlyName "Git"
+    if (-not $ok) {
+        Fail "Could not install Git via winget. Install manually from https://git-scm.com/ and re-run setup."
+    }
     Refresh-Path
 }
 if (Get-Command git -ErrorAction SilentlyContinue) {
     Ok "Git installed"
 } else {
-    Fail "Git not found. Install from https://git-scm.com/"
+    Fail "Git not found after install. Open a new terminal and re-run setup, or install from https://git-scm.com/"
 }
 
 # -- 2. Ollama ---------------------------------------------------------------
