@@ -138,7 +138,7 @@ if [[ $choice =~ ^[0-9]+$ ]] && [ "$choice" -le "${#models[@]}" ] && [ "$choice"
     mkdir -p "$(dirname "$CONFIG_FILE")"
     if [ -f "$CONFIG_FILE" ] && grep -q "^GOOSE_MODEL:" "$CONFIG_FILE" 2>/dev/null; then
         tmpfile=$(mktemp /tmp/goose-config.XXXXXX)
-        sed "s/^GOOSE_MODEL: .*/GOOSE_MODEL: $selected_model/" "$CONFIG_FILE" > "$tmpfile"
+        sed "s|^GOOSE_MODEL: .*|GOOSE_MODEL: $selected_model|" "$CONFIG_FILE" > "$tmpfile"
         cp "$tmpfile" "$CONFIG_FILE"
         rm -f "$tmpfile"
     elif [ -f "$CONFIG_FILE" ]; then

@@ -498,7 +498,7 @@ if [ -f "$PROJECT_DIR/config/goose-config-template.yaml" ]; then
     # Restore model selection
     if [ -n "$CURRENT_MODEL" ]; then
         tmpfile=$(mktemp /tmp/goose-cfg.XXXXXX)
-        sed "s/^GOOSE_MODEL: .*/GOOSE_MODEL: $CURRENT_MODEL/" "$GOOSE_CONFIG" > "$tmpfile"
+        sed "s|^GOOSE_MODEL: .*|GOOSE_MODEL: $CURRENT_MODEL|" "$GOOSE_CONFIG" > "$tmpfile"
         cp "$tmpfile" "$GOOSE_CONFIG"
         rm -f "$tmpfile"
     fi
